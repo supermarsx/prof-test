@@ -35,6 +35,16 @@ export class QuestionRepository {
   list(): Question[] {
     return this.readAll();
   }
+  
+  search(text: string): Question[] {
+    const needle = text.trim().toLowerCase();
+    if (!needle) return [];
+    return this.readAll().filter((q) => {
+      return (q.stem && q.stem.toLowerCase().includes(needle)) ||
+        (q.topic && q.topic.toLowerCase().includes(needle)) ||
+        (q.tags && q.tags.join(' ').toLowerCase().includes(needle));
+    });
+  }
 
   get(id: UUID): Question | undefined {
     return this.readAll().find((q) => q.id === id);

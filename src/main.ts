@@ -40,6 +40,10 @@ ipcMain.handle('questions:list', async () => {
   return repo.list();
 });
 
+ipcMain.handle('questions:search', async (_evt, text: string) => {
+  return repo.search(String(text || ''));
+});
+
 ipcMain.handle('questions:get', async (_evt, id: string) => {
   return repo.get(id);
 });
@@ -62,3 +66,4 @@ ipcMain.handle('questions:remove', async (_evt, id: string) => {
   repo.remove(id);
   return { ok: true };
 });
+

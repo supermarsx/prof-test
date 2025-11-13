@@ -8,10 +8,14 @@
     "start": "node dist/main.js",
     "dev": "tsc -w",
     "electron:build": "tsc && electron .",
-    "test": "tsc && node dist/test-runner.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "echo \"No linter configured\" && exit 0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "@types/electron": "^1.4.38",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
   }
 }

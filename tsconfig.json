@@ -11,5 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "types": ["node", "vitest/globals"]
 }
+

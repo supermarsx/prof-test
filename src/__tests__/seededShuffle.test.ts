@@ -1,4 +1,5 @@
 import { seededShuffle } from '../utils/seededShuffle';
+import { test, expect } from 'vitest';
 
 function ids(arr: any[]) { return arr.map((x) => x.id); }
 
