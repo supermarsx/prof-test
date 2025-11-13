@@ -1,22 +1,15 @@
 import React, { useState } from 'react';
+import { QuestionList } from './components/QuestionList';
+import { QuestionEditor } from './components/QuestionEditor';
 
 export function App() {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-
-  const onSearch = async () => {
-    const res = await (window as any).profTestAPI.searchQuestions(query);
-    setResults(res || []);
-  };
+  const [selected, setSelected] = useState<any | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>prof-test</h1>
-      <div>
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search questions..." />
-        <button onClick={onSearch}>Search</button>
-      </div>
-      <pre>{JSON.stringify(results, null, 2)}</pre>
+    <div style={{ display: 'flex', padding: 20 }}>
+      <QuestionList onSelect={(q) => setSelected(q)} key={refreshKey} />
+      <QuestionEditor question={selected} onSaved={() => setRefreshKey((k) => k + 1)} />
     </div>
   );
 }

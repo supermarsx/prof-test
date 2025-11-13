@@ -16,6 +16,8 @@
     "lint": "echo \"No linter configured\" && exit 0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
     "@types/electron": "^1.4.38",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.4",
