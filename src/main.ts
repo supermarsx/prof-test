@@ -16,8 +16,14 @@ function createWindow() {
     },
   });
 
-  const indexHtml = path.join(__dirname, 'renderer', 'index.html');
-  mainWindow.loadFile(indexHtml).catch((err) => console.error('Failed to load index.html', err));
+  // In dev, when Vite serves the renderer, load the dev server. Otherwise load built files.
+  const devUrl = 'http://localhost:5173';
+  if (process.env.ELECTRON_DEV) {
+    mainWindow.loadURL(devUrl).catch((err) => console.error('Failed to load dev server', err));
+  } else {
+    const indexHtml = path.join(__dirname, 'renderer', 'index.html');
+    mainWindow.loadFile(indexHtml).catch((err) => console.error('Failed to load index.html', err));
+  }
 
   mainWindow.on('closed', () => {
     mainWindow = null;
