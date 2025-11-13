@@ -16,6 +16,10 @@ export class QuestionRepository {
   constructor(filePath = QUESTIONS_FILE) {
     this.filePath = filePath;
     ensureDataDir();
+    // ensure custom file path exists (useful for tests)
+    const dir = path.dirname(this.filePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    if (!fs.existsSync(this.filePath)) fs.writeFileSync(this.filePath, '[]', 'utf8');
   }
 
   private readAll(): Question[] {
