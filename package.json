@@ -1,0 +1,16 @@
+{
+  "name": "prof-test",
+  "version": "0.1.0",
+  "description": "Cross-platform LaTeX test generator (prototype)",
+  "main": "src/main.ts",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsc -w",
+    "test": "echo \"No tests yet\" && exit 0",
+    "lint": "echo \"No linter configured\" && exit 0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
