@@ -13,6 +13,6 @@ test('generateTestVersions produces requested number of versions and answer keys
   versions.forEach((v) => {
     expect(v.answer_key).toBeDefined();
     // ensure answer_key has entries for each question
-    expect(Object.keys(v.answer_key).length).toBe(sampleQs.length);
+    expect(Object.keys(v.answer_key || {}).length).toBe(sampleQs.length);
   });
 });
