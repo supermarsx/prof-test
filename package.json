@@ -2,11 +2,12 @@
   "name": "prof-test",
   "version": "0.1.0",
   "description": "Cross-platform LaTeX test generator (prototype)",
-  "main": "src/main.ts",
+  "main": "dist/main.js",
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js",
     "dev": "tsc -w",
+    "electron:build": "tsc && electron .",
     "test": "echo \"No tests yet\" && exit 0",
     "lint": "echo \"No linter configured\" && exit 0"
   },
