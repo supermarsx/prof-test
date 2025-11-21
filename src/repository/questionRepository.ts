@@ -1,49 +1,26 @@
-import fs from 'fs';
-import path from 'path';
 import { Question, UUID } from '../models';
-
-const DATA_DIR = path.join(__dirname, '..', '..', 'data');
-const QUESTIONS_FILE = path.join(DATA_DIR, 'questions.json');
-
-function ensureDataDir() {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(QUESTIONS_FILE)) fs.writeFileSync(QUESTIONS_FILE, '[]', 'utf8');
-}
+import { StorageBackend, JsonFileStorage } from './storage';
 
 export class QuestionRepository {
-  private filePath: string;
+  private backend: StorageBackend;
 
-  constructor(filePath = QUESTIONS_FILE) {
-    this.filePath = filePath;
-    ensureDataDir();
-    // ensure custom file path exists (useful for tests)
-    const dir = path.dirname(this.filePath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(this.filePath)) fs.writeFileSync(this.filePath, '[]', 'utf8');
-  }
-
-  private readAll(): Question[] {
-    const raw = fs.readFileSync(this.filePath, 'utf8');
-    try {
-      const parsed = JSON.parse(raw) as Question[];
-      return parsed;
-    } catch (e) {
-      throw new Error('Failed to parse questions.json: ' + String(e));
+  constructor(filePath?: string, backend?: StorageBackend) {
+    // allow injection of a custom backend for tests or future SQLite implementation
+    if (backend) {
+      this.backend = backend;
+    } else {
+      this.backend = new JsonFileStorage(filePath);
     }
   }
 
-  private writeAll(questions: Question[]) {
-    fs.writeFileSync(this.filePath, JSON.stringify(questions, null, 2), 'utf8');
-  }
-
   list(): Question[] {
-    return this.readAll();
+    return this.backend.listQuestions();
   }
   
   search(text: string): Question[] {
-    const needle = text.trim().toLowerCase();
+    const needle = String(text || '').trim().toLowerCase();
     if (!needle) return [];
-    return this.readAll().filter((q) => {
+    return this.backend.listQuestions().filter((q) => {
       return (q.stem && q.stem.toLowerCase().includes(needle)) ||
         (q.topic && q.topic.toLowerCase().includes(needle)) ||
         (q.tags && q.tags.join(' ').toLowerCase().includes(needle));
@@ -51,26 +28,18 @@ export class QuestionRepository {
   }
 
   get(id: UUID): Question | undefined {
-    return this.readAll().find((q) => q.id === id);
+    return this.backend.getQuestion(id);
   }
 
   add(question: Question) {
-    const all = this.readAll();
-    all.push(question);
-    this.writeAll(all);
+    this.backend.addQuestion(question);
   }
 
   update(id: UUID, patch: Partial<Question>) {
-    const all = this.readAll();
-    const idx = all.findIndex((q) => q.id === id);
-    if (idx === -1) throw new Error('Question not found');
-    all[idx] = { ...all[idx], ...patch, updated_at: new Date().toISOString() };
-    this.writeAll(all);
+    this.backend.updateQuestion(id, patch);
   }
 
   remove(id: UUID) {
-    const all = this.readAll();
-    const filtered = all.filter((q) => q.id !== id);
-    this.writeAll(filtered);
+    this.backend.removeQuestion(id);
   }
 }
