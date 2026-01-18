@@ -11,7 +11,14 @@ export function generateTestVersions(baseQuestions: Question[], options: Generat
   const baseSeed = options.seed || 1;
   for (let v = 0; v < options.versions; v++) {
     const seed = baseSeed + v;
-    const shuffled = seededShuffle(baseQuestions, seed);
+    const shuffled = seededShuffle(baseQuestions, seed).map((q, idx) => {
+      if (q.choices && (q.type === 'multiple_choice' || q.type === 'multiple_select')) {
+        const choiceSeed = seed + idx + 1000;
+        const choices = seededShuffle(q.choices, choiceSeed);
+        return { ...q, choices };
+      }
+      return q;
+    });
     const questionInstances: QuestionInstance[] = shuffled.map((q, idx) => ({
       id: `${q.id}_v${v}`,
       base_question_id: q.id,
