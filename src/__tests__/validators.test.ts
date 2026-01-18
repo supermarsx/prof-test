@@ -7,7 +7,12 @@ test('validateQuestion returns errors for missing fields', () => {
 });
 
 test('validateQuestion accepts basic valid question', () => {
-  const errors = validateQuestion({ id: 'q1', type: 'multiple_choice', stem: 'Hi' } as any);
+  const errors = validateQuestion({
+    id: 'q1',
+    type: 'multiple_choice',
+    stem: 'Hi',
+    choices: [{ id: 'c1', text: 'A', is_correct: true }, { id: 'c2', text: 'B', is_correct: false }],
+  } as any);
   expect(errors.length).toBe(0);
 });
 

@@ -13,6 +13,10 @@ function makeQuestion(id: string) {
     id,
     type: 'multiple_choice',
     stem: `Question ${id}`,
+    choices: [
+      { id: 'c1', text: 'A', is_correct: true },
+      { id: 'c2', text: 'B', is_correct: false },
+    ],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   } as any;
@@ -51,7 +55,15 @@ test('QuestionRepository CRUD operations', () => {
 
 test('QuestionRepository sets timestamps on add', () => {
   const repo = new QuestionRepository(undefined, new JsonFileStorage(TMP));
-  repo.add({ id: 'q3', type: 'multiple_choice', stem: 'Test' } as any);
+  repo.add({
+    id: 'q3',
+    type: 'multiple_choice',
+    stem: 'Test',
+    choices: [
+      { id: 'c1', text: 'A', is_correct: true },
+      { id: 'c2', text: 'B', is_correct: false },
+    ],
+  } as any);
   const got = repo.get('q3');
   expect(got!.created_at).toBeDefined();
   expect(got!.updated_at).toBeDefined();
