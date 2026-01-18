@@ -5,12 +5,12 @@ import YAML from 'yaml';
 import { StorageBackend } from './storage';
 import { SqliteStorage } from './sqliteStorage';
 import { validateQuestion } from '../utils/validators';
-import { LruCache } from '../utils/lruCache';
+import { SizeLruCache } from '../utils/sizeLruCache';
 import { CacheRegistry } from '../utils/cacheRegistry';
 
 export class QuestionRepository {
   private backend: StorageBackend;
-  private cache: LruCache<UUID, Question>;
+  private cache: SizeLruCache<UUID, Question>;
   private cacheRegistry: CacheRegistry;
 
   constructor(filePath?: string, backend?: StorageBackend) {
@@ -22,10 +22,11 @@ export class QuestionRepository {
     }
     this.cacheRegistry = new CacheRegistry();
     const namespace = filePath ? `questions:${path.basename(filePath)}` : 'questions:default';
-    this.cache = this.cacheRegistry.getCache<UUID, Question>(namespace, {
-      maxSize: 1000,
-      ttlMs: 5 * 60 * 1000,
-    });
+    this.cache = this.cacheRegistry.getSizedCache<UUID, Question>(
+      namespace,
+      { maxSize: 100 * 1024 * 1024, ttlMs: 5 * 60 * 1000 },
+      (value) => Buffer.byteLength(JSON.stringify(value), 'utf8')
+    );
   }
 
   list(): Question[] {
