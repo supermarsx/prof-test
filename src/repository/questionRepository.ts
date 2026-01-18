@@ -1,12 +1,16 @@
 import { Question, UUID } from '../models';
+import fs from 'fs';
+import YAML from 'yaml';
 import { StorageBackend } from './storage';
 import { SqliteStorage } from './sqliteStorage';
 import { validateQuestion } from '../utils/validators';
 import { LruCache } from '../utils/lruCache';
+import { CacheRegistry } from '../utils/cacheRegistry';
 
 export class QuestionRepository {
   private backend: StorageBackend;
   private cache: LruCache<UUID, Question>;
+  private cacheRegistry: CacheRegistry;
 
   constructor(filePath?: string, backend?: StorageBackend) {
     // allow injection of a custom backend for tests or JSON fallback
@@ -15,7 +19,11 @@ export class QuestionRepository {
     } else {
       this.backend = new SqliteStorage(filePath);
     }
-    this.cache = new LruCache<UUID, Question>(1000, 5 * 60 * 1000);
+    this.cacheRegistry = new CacheRegistry();
+    this.cache = this.cacheRegistry.getCache<UUID, Question>('questions', {
+      maxSize: 1000,
+      ttlMs: 5 * 60 * 1000,
+    });
   }
 
   list(): Question[] {
@@ -52,8 +60,14 @@ export class QuestionRepository {
     if (errors.length) {
       throw new Error(errors.join('; '));
     }
-    this.backend.addQuestion(question);
-    this.cache.set(question.id, question);
+    const now = new Date().toISOString();
+    const next = {
+      ...question,
+      created_at: question.created_at || now,
+      updated_at: question.updated_at || now,
+    } as Question;
+    this.backend.addQuestion(next);
+    this.cache.set(next.id, next);
   }
 
   update(id: UUID, patch: Partial<Question>) {
@@ -64,12 +78,72 @@ export class QuestionRepository {
     if (errors.length) {
       throw new Error(errors.join('; '));
     }
-    this.backend.updateQuestion(id, patch);
-    this.cache.set(id, { ...existing, ...patch } as Question);
+    const now = new Date().toISOString();
+    const next = { ...existing, ...patch, updated_at: now } as Question;
+    this.backend.updateQuestion(id, next);
+    this.cache.set(id, next);
   }
 
   remove(id: UUID) {
     this.backend.removeQuestion(id);
     this.cache.delete(id);
+  }
+
+  exportToJson(filePath: string) {
+    const data = this.backend.listQuestions();
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+    return filePath;
+  }
+
+  importFromJson(filePath: string, mode: 'append' | 'replace' = 'append') {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = JSON.parse(raw) as Question[];
+    if (!Array.isArray(parsed)) {
+      throw new Error('Invalid JSON format: expected an array of questions');
+    }
+    if (mode === 'replace') {
+      const existing = this.backend.listQuestions();
+      for (const q of existing) {
+        this.backend.removeQuestion(q.id);
+        this.cache.delete(q.id);
+      }
+    }
+    for (const q of parsed) {
+      const errors = validateQuestion(q);
+      if (errors.length) {
+        throw new Error(`Invalid question ${q.id || '(missing id)'}: ${errors.join('; ')}`);
+      }
+      this.backend.addQuestion(q);
+      this.cache.set(q.id, q);
+    }
+  }
+
+  exportToYaml(filePath: string) {
+    const data = this.backend.listQuestions();
+    fs.writeFileSync(filePath, YAML.stringify(data), 'utf8');
+    return filePath;
+  }
+
+  importFromYaml(filePath: string, mode: 'append' | 'replace' = 'append') {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    const parsed = YAML.parse(raw) as Question[];
+    if (!Array.isArray(parsed)) {
+      throw new Error('Invalid YAML format: expected an array of questions');
+    }
+    if (mode === 'replace') {
+      const existing = this.backend.listQuestions();
+      for (const q of existing) {
+        this.backend.removeQuestion(q.id);
+        this.cache.delete(q.id);
+      }
+    }
+    for (const q of parsed) {
+      const errors = validateQuestion(q);
+      if (errors.length) {
+        throw new Error(`Invalid question ${q.id || '(missing id)'}: ${errors.join('; ')}`);
+      }
+      this.backend.addQuestion(q);
+      this.cache.set(q.id, q);
+    }
   }
 }

@@ -21,6 +21,16 @@ test('validateQuestion enforces choice rules for multiple choice', () => {
   expect(errors.length).toBeGreaterThan(0);
 });
 
+test('validateQuestion enforces true/false rules', () => {
+  const errors = validateQuestion({
+    id: 'q3',
+    type: 'true_false',
+    stem: 'Hi',
+    choices: [{ id: 't', text: 'True', is_correct: true }],
+  } as any);
+  expect(errors.length).toBeGreaterThan(0);
+});
+
 test('validateHeaderPreset enforces required fields', () => {
   const errors = validateHeaderPreset({ id: '', name: '', scope: 'global' } as any);
   expect(errors.length).toBeGreaterThan(0);

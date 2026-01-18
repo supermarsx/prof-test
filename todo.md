@@ -27,7 +27,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Implement a basic migration framework.
 - [x] Add seed data for default templates/presets/settings.
 - [x] Add a basic in-memory LRU cache for question reads.
-- [ ] Add AI-specific cache namespace + TTL policies.
+- [x] Add AI-specific cache namespace + TTL policies.
 - [ ] Add in-memory LRU cache in main process with TTL for AI content.
 - [ ] Add cache invalidation hooks for question/test updates.
 - [ ] Add per-project cache namespaces and size limits.
@@ -35,14 +35,16 @@ This list tracks open work derived from `spec.md` and current implementation. It
 ## Question Bank UX
 - [x] Add filters: subject, topic, subtopic, difficulty, tags, author.
 - [x] Add sorting (last modified, difficulty, topic).
-- [ ] Support bulk import/export (JSON/YAML).
-- [ ] Add tag management (create, rename, merge).
-- [ ] Add image upload flow and placement controls.
+- [x] Support bulk import/export (JSON).
+- [x] Support bulk import/export (YAML).
+- [x] Add tag management (create, rename, merge).
+- [x] Add image upload flow and placement controls.
 - [x] Add question cloning and deletion confirmations.
 
 ## Question Editor
 - [ ] Add LaTeX-aware editor with live preview and error panel.
-- [ ] Add type-specific editors for MC, MS, T/F, short answer.
+- [x] Add type-specific editors for MC, MS, and T/F.
+- [x] Add type-specific editor for short answer.
 - [ ] Add choice-level image support (per-choice images).
 - [x] Add solution/explanation fields with LaTeX support.
 
@@ -67,7 +69,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 ## Randomization & Versioning
 - [x] Implement deterministic shuffling with seed.
 - [x] Shuffle choices for MC and MS questions.
-- [ ] Maintain image-to-question pairing after shuffle.
+- [x] Maintain image-to-question pairing after shuffle.
 - [x] Add version labeling (A-T) and mapping to answer keys.
 
 ## LaTeX Pipeline
@@ -77,13 +79,14 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [ ] Add render preview for individual questions and whole tests.
 
 ## Exports: CSV/Excel
-- [ ] Generate answer key CSV per version.
-- [ ] Generate question metadata export.
-- [ ] Generate grading matrix Excel with formulas.
-- [ ] Add export configuration UI and profiles.
+- [x] Generate answer key CSV per version.
+- [x] Generate question metadata export.
+- [x] Generate grading matrix Excel with formulas.
+- [x] Add basic export configuration UI.
+- [x] Add export profiles.
 
 ## Project Management
-- [ ] Implement project creation wizard and recent projects list.
+- [x] Implement project creation and project list basics.
 - [ ] Add project import/export (.examproj) with media/templates.
 - [ ] Add project-level templates and presets.
 

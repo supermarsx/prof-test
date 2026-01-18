@@ -1,9 +1,16 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import path from 'path';
+import fs from 'fs';
 import { QuestionRepository } from './repository/questionRepository';
+import { ExportProfileRepository } from './repository/exportProfileRepository';
+import { buildAnswerKeyCsv, buildQuestionMetadataCsv } from './utils/exports';
+import { buildGradingMatrixWorkbook } from './utils/exportsExcel';
 
 let mainWindow: BrowserWindow | null = null;
-let repo = new QuestionRepository();
+const defaultDbPath = path.join(app.getAppPath(), 'data', 'questions.db');
+let activeDbPath = defaultDbPath;
+let repo = new QuestionRepository(activeDbPath);
+let exportProfiles = new ExportProfileRepository(activeDbPath);
 
 
 function createWindow() {
@@ -74,6 +81,98 @@ ipcMain.handle('questions:remove', async (_evt, id: string) => {
   return { ok: true };
 });
 
+ipcMain.handle('questions:exportJson', async (_evt, filePath: string) => {
+  try {
+    const saved = repo.exportToJson(String(filePath));
+    return { ok: true, path: saved };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('questions:importJson', async (_evt, filePath: string, mode: 'append' | 'replace') => {
+  try {
+    repo.importFromJson(String(filePath), mode);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('questions:exportYaml', async (_evt, filePath: string) => {
+  try {
+    const saved = repo.exportToYaml(String(filePath));
+    return { ok: true, path: saved };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('questions:importYaml', async (_evt, filePath: string, mode: 'append' | 'replace') => {
+  try {
+    repo.importFromYaml(String(filePath), mode);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('questions:exportMetadataCsv', async (_evt, filePath: string) => {
+  try {
+    const csv = buildQuestionMetadataCsv(repo.list());
+    fs.writeFileSync(String(filePath), csv, 'utf8');
+    return { ok: true, path: String(filePath) };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('exports:answerKeyCsv', async (_evt, testId: string, versions: any[], filePath: string) => {
+  try {
+    const csv = buildAnswerKeyCsv(String(testId), versions as any);
+    fs.writeFileSync(String(filePath), csv, 'utf8');
+    return { ok: true, path: String(filePath) };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('exports:gradingMatrixXlsx', async (_evt, testId: string, versions: any[], filePath: string) => {
+  try {
+    const buf = buildGradingMatrixWorkbook(String(testId), versions as any);
+    fs.writeFileSync(String(filePath), buf);
+    return { ok: true, path: String(filePath) };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('exportProfiles:list', async () => {
+  try {
+    return { ok: true, profiles: exportProfiles.list() };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('exportProfiles:upsert', async (_evt, profile: any) => {
+  try {
+    exportProfiles.upsert(profile);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('exportProfiles:remove', async (_evt, id: string) => {
+  try {
+    exportProfiles.remove(String(id));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
 // Project & media IPC
 import { ProjectManager } from './repository/projectManager';
 const projectManager = new ProjectManager();
@@ -103,7 +202,9 @@ ipcMain.handle('project:activate', async (_evt, name: string) => {
     activeProject = String(name);
     // re-initialize the repo to point to project's questions database
     const projectQuestionsPath = path.join(layout.dataDir, 'questions.db');
-    repo = new QuestionRepository(projectQuestionsPath);
+    activeDbPath = projectQuestionsPath;
+    repo = new QuestionRepository(activeDbPath);
+    exportProfiles = new ExportProfileRepository(activeDbPath);
     return { ok: true, active: name };
   } catch (e) {
     return { ok: false, error: String(e) };
@@ -128,6 +229,24 @@ ipcMain.handle('project:listMedia', async (_evt, projectName: string) => {
   try {
     const files = projectManager.listMedia(projectName);
     return { ok: true, files };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('project:export', async (_evt, name: string, outPath: string) => {
+  try {
+    const saved = projectManager.exportProject(String(name), String(outPath));
+    return { ok: true, path: saved };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('project:import', async (_evt, archivePath: string, name: string) => {
+  try {
+    const layout = projectManager.importProject(String(archivePath), String(name));
+    return { ok: true, layout };
   } catch (e) {
     return { ok: false, error: String(e) };
   }

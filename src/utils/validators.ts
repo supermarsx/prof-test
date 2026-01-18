@@ -32,6 +32,16 @@ export function validateQuestion(question: Question): string[] {
       errors.push('Multiple choice questions require exactly one correct choice');
     }
   }
+  if (question.type === 'true_false') {
+    const choices = question.choices || [];
+    if (choices.length !== 2) {
+      errors.push('True/False questions require exactly 2 choices');
+    }
+    const correctCount = choices.filter((c) => c.is_correct).length;
+    if (correctCount !== 1) {
+      errors.push('True/False questions require exactly one correct choice');
+    }
+  }
   return errors;
 }
 

@@ -13,6 +13,12 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
   const [tag, setTag] = useState('');
   const [author, setAuthor] = useState('');
   const [sortKey, setSortKey] = useState('');
+  const [tagFrom, setTagFrom] = useState('');
+  const [tagTo, setTagTo] = useState('');
+  const [importPath, setImportPath] = useState('');
+  const [exportPath, setExportPath] = useState('');
+  const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
+  const [ioFormat, setIoFormat] = useState<'json' | 'yaml'>('json');
 
   useEffect(() => {
     window.profTestAPI.listQuestions().then((q: Question[]) => setQuestions(q || []));
@@ -70,6 +76,52 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
     return list;
   }, [questions, sortKey]);
 
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const q of questions) {
+      for (const t of q.tags || []) {
+        const key = t.trim();
+        if (!key) continue;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [questions]);
+
+  const renameTag = async () => {
+    if (!tagFrom.trim() || !tagTo.trim()) return;
+    const all = await window.profTestAPI.listQuestions();
+    for (const q of all || []) {
+      if (!q.tags) continue;
+      const nextTags = q.tags.map((t: string) => (t === tagFrom ? tagTo : t));
+      if (nextTags.join('|') !== q.tags.join('|')) {
+        await window.profTestAPI.updateQuestion(q.id, { tags: nextTags });
+      }
+    }
+    setTagFrom('');
+    setTagTo('');
+    await refresh();
+  };
+
+  const exportQuestions = async () => {
+    if (!exportPath.trim()) return;
+    if (ioFormat === 'json') {
+      await window.profTestAPI.exportQuestionsJson(exportPath.trim());
+    } else {
+      await window.profTestAPI.exportQuestionsYaml(exportPath.trim());
+    }
+  };
+
+  const importQuestions = async () => {
+    if (!importPath.trim()) return;
+    if (ioFormat === 'json') {
+      await window.profTestAPI.importQuestionsJson(importPath.trim(), importMode);
+    } else {
+      await window.profTestAPI.importQuestionsYaml(importPath.trim(), importMode);
+    }
+    await refresh();
+  };
+
   const cloneQuestion = async (q: Question) => {
     const next = { ...q, id: `q-${Math.random().toString(36).slice(2, 9)}` };
     await window.profTestAPI.addQuestion(next);
@@ -106,6 +158,40 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
             <option value="difficulty">Sort by Difficulty</option>
             <option value="updated_at">Sort by Updated</option>
           </select>
+        </div>
+        <div>
+          <strong>Tags</strong>
+          <div>
+            <input value={tagFrom} onChange={(e) => setTagFrom(e.target.value)} placeholder="Tag to rename" />
+            <input value={tagTo} onChange={(e) => setTagTo(e.target.value)} placeholder="New tag" />
+            <button onClick={renameTag}>Rename/Merge</button>
+          </div>
+          <ul>
+            {Object.entries(tagCounts).map(([t, count]) => (
+              <li key={t}>{t} ({count})</li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <strong>Import/Export</strong>
+          <div>
+            <select value={ioFormat} onChange={(e) => setIoFormat(e.target.value as any)}>
+              <option value="json">JSON</option>
+              <option value="yaml">YAML</option>
+            </select>
+            <select value={importMode} onChange={(e) => setImportMode(e.target.value as any)}>
+              <option value="append">Append</option>
+              <option value="replace">Replace</option>
+            </select>
+          </div>
+          <div>
+            <input value={importPath} onChange={(e) => setImportPath(e.target.value)} placeholder="Import path" />
+            <button onClick={importQuestions}>Import</button>
+          </div>
+          <div>
+            <input value={exportPath} onChange={(e) => setExportPath(e.target.value)} placeholder="Export path" />
+            <button onClick={exportQuestions}>Export</button>
+          </div>
         </div>
         <button onClick={() => onSelect(null)}>New Question</button>
         <ul>

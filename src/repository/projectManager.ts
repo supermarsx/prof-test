@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import AdmZip from 'adm-zip';
 
 export interface ProjectLayout {
   root: string;
@@ -73,5 +74,24 @@ export class ProjectManager {
         return false;
       }
     });
+  }
+
+  exportProject(name: string, outPath: string): string {
+    const layout = this.projectLayout(name);
+    if (!layout) throw new Error('Project not found');
+    const zip = new AdmZip();
+    zip.addLocalFolder(layout.root);
+    zip.writeZip(outPath);
+    return outPath;
+  }
+
+  importProject(archivePath: string, name: string): ProjectLayout {
+    if (!name || !name.trim()) throw new Error('Project name is required');
+    const root = path.join(this.baseDir, name);
+    if (fs.existsSync(root)) throw new Error('Project already exists');
+    fs.mkdirSync(root, { recursive: true });
+    const zip = new AdmZip(archivePath);
+    zip.extractAllTo(root, true);
+    return this.projectLayout(name) as ProjectLayout;
   }
 }

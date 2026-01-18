@@ -10,11 +10,41 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
   const [draft, setDraft] = useState<Question>(question || { id: '', type: 'multiple_choice', stem: '' } as any);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [mediaList, setMediaList] = useState<string[]>([]);
+  const [mediaAlt, setMediaAlt] = useState('');
+  const [mediaCaption, setMediaCaption] = useState('');
+  const [mediaPlacement, setMediaPlacement] = useState<'above' | 'below' | 'inline' | 'per_choice'>('below');
+  const [selectedMedia, setSelectedMedia] = useState('');
+  const [trueFalseValue, setTrueFalseValue] = useState<'true' | 'false'>('true');
 
   useEffect(() => {
     setDraft(question || ({ id: '', type: 'multiple_choice', stem: '' } as any));
     setError(null);
   }, [question]);
+
+  useEffect(() => {
+    if (draft.type === 'true_false' && draft.choices && draft.choices.length === 2) {
+      const correct = draft.choices.find((c) => c.is_correct);
+      if (correct) {
+        setTrueFalseValue(correct.text.toLowerCase() === 'false' ? 'false' : 'true');
+      }
+    }
+  }, [draft.type, draft.choices]);
+
+  useEffect(() => {
+    window.profTestAPI.getActiveProject().then((res: any) => {
+      if (res && res.active) {
+        setActiveProject(res.active);
+        window.profTestAPI.listMedia(res.active).then((list: any) => {
+          setMediaList(list?.files || list || []);
+        });
+      } else {
+        setActiveProject(null);
+        setMediaList([]);
+      }
+    });
+  }, []);
 
   function updateField<K extends keyof Question>(key: K, value: Question[K]) {
     setDraft((d) => ({ ...d, [key]: value } as Question));
@@ -43,6 +73,42 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
     updateField('choices', next as any);
   }
 
+  function addMediaRef(filename: string) {
+    const next = (draft.media_refs || []).slice();
+    const id = 'm-' + Math.random().toString(36).slice(2, 9);
+    next.push({
+      id,
+      path: filename,
+      alt_text: mediaAlt || undefined,
+      caption: mediaCaption || undefined,
+      placement: mediaPlacement,
+    });
+    updateField('media_refs', next as any);
+  }
+
+  async function handleFileUpload(file: File | null) {
+    if (!file) return;
+    if (!activeProject) {
+      setError('Select or create a project before uploading media');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = String(reader.result || '');
+      const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+      const res = await window.profTestAPI.saveMedia(activeProject, file.name, base64);
+      if (!res.ok) {
+        setError(res.error || 'Failed to save media');
+        return;
+      }
+      const savedPath = res.path as string;
+      const filename = savedPath.split(/[/\\\\]/).pop() || file.name;
+      setMediaList((prev) => Array.from(new Set([...prev, filename])));
+      addMediaRef(filename);
+    };
+    reader.readAsDataURL(file);
+  }
+
   async function save() {
     setError(null);
     if (!draft.stem || draft.stem.trim() === '') {
@@ -59,6 +125,13 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
         setError('At least one correct choice is required');
         return;
       }
+    }
+    if (draft.type === 'true_false') {
+      const choices = [
+        { id: 'true', text: 'True', is_correct: trueFalseValue === 'true' },
+        { id: 'false', text: 'False', is_correct: trueFalseValue === 'false' },
+      ];
+      draft.choices = choices as any;
     }
     setSaving(true);
     try {
@@ -166,10 +239,79 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
           </div>
         )}
 
+        {draft.type === 'true_false' && (
+          <div>
+            <label>Correct Answer</label>
+            <select value={trueFalseValue} onChange={(e) => setTrueFalseValue(e.target.value as any)}>
+              <option value="true">True</option>
+              <option value="false">False</option>
+            </select>
+          </div>
+        )}
+
         <div>
-          <label>Solution</label>
-          <textarea value={draft.solution || ''} onChange={(e) => updateField('solution', e.target.value)} />
+          <h3>Media</h3>
+          {!activeProject && <div style={{ color: 'red' }}>No active project selected</div>}
+          <div>
+            <label>Alt Text</label>
+            <input value={mediaAlt} onChange={(e) => setMediaAlt(e.target.value)} />
+          </div>
+          <div>
+            <label>Caption</label>
+            <input value={mediaCaption} onChange={(e) => setMediaCaption(e.target.value)} />
+          </div>
+          <div>
+            <label>Placement</label>
+            <select value={mediaPlacement} onChange={(e) => setMediaPlacement(e.target.value as any)}>
+              <option value="above">Above</option>
+              <option value="below">Below</option>
+              <option value="inline">Inline</option>
+              <option value="per_choice">Per Choice</option>
+            </select>
+          </div>
+          <div>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => handleFileUpload(e.target.files ? e.target.files[0] : null)}
+            />
+          </div>
+          <div>
+            <select value={selectedMedia} onChange={(e) => setSelectedMedia(e.target.value)}>
+              <option value="">Attach existing media</option>
+              {mediaList.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => {
+                if (selectedMedia) addMediaRef(selectedMedia);
+              }}
+            >
+              Attach
+            </button>
+          </div>
+          <ul>
+            {(draft.media_refs || []).map((m) => (
+              <li key={m.id}>
+                {m.path} ({m.placement})
+              </li>
+            ))}
+          </ul>
         </div>
+
+        {draft.type === 'short_answer' && (
+          <div>
+            <label>Expected Answer</label>
+            <textarea value={draft.solution || ''} onChange={(e) => updateField('solution', e.target.value)} />
+          </div>
+        )}
+        {draft.type !== 'short_answer' && (
+          <div>
+            <label>Solution</label>
+            <textarea value={draft.solution || ''} onChange={(e) => updateField('solution', e.target.value)} />
+          </div>
+        )}
         <div>
           <label>Explanation</label>
           <textarea value={draft.explanation || ''} onChange={(e) => updateField('explanation', e.target.value)} />
