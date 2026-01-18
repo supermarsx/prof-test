@@ -17,8 +17,8 @@ function createWindow() {
     },
   });
 
-  // In dev, when Vite serves the renderer, load the dev server. Otherwise load built files.
-  const devUrl = 'http://localhost:5173';
+  // In dev, when Next.js serves the renderer, load the dev server. Otherwise load built files.
+  const devUrl = 'http://localhost:3000';
   if (process.env.ELECTRON_DEV) {
     mainWindow.loadURL(devUrl).catch((err) => console.error('Failed to load dev server', err));
   } else {
@@ -138,4 +138,3 @@ ipcMain.handle('project:listMedia', async (_evt, projectName: string) => {
     return { ok: false, error: String(e) };
   }
 });
-
