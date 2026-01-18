@@ -19,6 +19,7 @@ export interface Choice {
   id: UUID;
   text: string;
   is_correct?: boolean;
+  media_ref_id?: UUID;
 }
 
 export interface Question {

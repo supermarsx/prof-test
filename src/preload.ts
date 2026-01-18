@@ -21,6 +21,13 @@ contextBridge.exposeInMainWorld('profTestAPI', {
   listExportProfiles: () => ipcRenderer.invoke('exportProfiles:list'),
   upsertExportProfile: (profile: any) => ipcRenderer.invoke('exportProfiles:upsert', profile),
   removeExportProfile: (id: string) => ipcRenderer.invoke('exportProfiles:remove', id),
+  listHeaderPresets: () => ipcRenderer.invoke('presets:header:list'),
+  upsertHeaderPreset: (preset: any) => ipcRenderer.invoke('presets:header:upsert', preset),
+  removeHeaderPreset: (id: string) => ipcRenderer.invoke('presets:header:remove', id),
+  listLayoutPresets: () => ipcRenderer.invoke('presets:layout:list'),
+  upsertLayoutPreset: (preset: any) => ipcRenderer.invoke('presets:layout:upsert', preset),
+  removeLayoutPreset: (id: string) => ipcRenderer.invoke('presets:layout:remove', id),
+  clearAiCache: () => ipcRenderer.invoke('cache:ai:clear'),
 
   // project & media management
   createProject: (name: string) => ipcRenderer.invoke('project:create', name),

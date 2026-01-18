@@ -23,6 +23,12 @@ export default function HomePage() {
   const [projectExportPath, setProjectExportPath] = useState('');
   const [projectImportPath, setProjectImportPath] = useState('');
   const [projectImportName, setProjectImportName] = useState('');
+  const [headerPresets, setHeaderPresets] = useState<any[]>([]);
+  const [layoutPresets, setLayoutPresets] = useState<any[]>([]);
+  const [headerName, setHeaderName] = useState('');
+  const [headerScope, setHeaderScope] = useState<'global' | 'project'>('project');
+  const [headerLatex, setHeaderLatex] = useState('');
+  const [layoutName, setLayoutName] = useState('');
 
   const refreshProjects = async () => {
     const listRes = await window.profTestAPI.listProjects();
@@ -42,9 +48,17 @@ export default function HomePage() {
     if (res && res.profiles) setProfiles(res.profiles);
   };
 
+  const refreshPresets = async () => {
+    const headerRes = await window.profTestAPI.listHeaderPresets();
+    const layoutRes = await window.profTestAPI.listLayoutPresets();
+    if (headerRes && headerRes.presets) setHeaderPresets(headerRes.presets);
+    if (layoutRes && layoutRes.presets) setLayoutPresets(layoutRes.presets);
+  };
+
   useEffect(() => {
     refreshProjects();
     refreshProfiles();
+    refreshPresets();
   }, []);
 
   const createProject = async () => {
@@ -174,6 +188,58 @@ export default function HomePage() {
     await refreshProfiles();
   };
 
+  const saveHeaderPreset = async () => {
+    setStatus(null);
+    if (!headerName.trim()) {
+      setStatus('Header preset name is required');
+      return;
+    }
+    const preset = {
+      id: `header-${headerName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      name: headerName.trim(),
+      scope: headerScope,
+      latex_snippet: headerLatex.trim() || undefined,
+    };
+    const res = await window.profTestAPI.upsertHeaderPreset(preset);
+    if (!res.ok) setStatus(res.error || 'Failed to save header preset');
+    setHeaderName('');
+    setHeaderLatex('');
+    await refreshPresets();
+  };
+
+  const deleteHeaderPreset = async (id: string) => {
+    const res = await window.profTestAPI.removeHeaderPreset(id);
+    if (!res.ok) setStatus(res.error || 'Failed to delete header preset');
+    await refreshPresets();
+  };
+
+  const saveLayoutPreset = async () => {
+    setStatus(null);
+    if (!layoutName.trim()) {
+      setStatus('Layout preset name is required');
+      return;
+    }
+    const preset = {
+      id: `layout-${layoutName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+      name: layoutName.trim(),
+    };
+    const res = await window.profTestAPI.upsertLayoutPreset(preset);
+    if (!res.ok) setStatus(res.error || 'Failed to save layout preset');
+    setLayoutName('');
+    await refreshPresets();
+  };
+
+  const clearCache = async () => {
+    const res = await window.profTestAPI.clearAiCache();
+    if (!res.ok) setStatus(res.error || 'Failed to clear AI cache');
+  };
+
+  const deleteLayoutPreset = async (id: string) => {
+    const res = await window.profTestAPI.removeLayoutPreset(id);
+    if (!res.ok) setStatus(res.error || 'Failed to delete layout preset');
+    await refreshPresets();
+  };
+
   return (
     <main style={{ display: 'flex', flexDirection: 'column', padding: 20, gap: 16 }}>
       <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -285,6 +351,57 @@ export default function HomePage() {
             ))}
           </ul>
         </div>
+      </section>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <h3>Presets</h3>
+        <div>
+          <h4>Header Presets</h4>
+          <input
+            value={headerName}
+            onChange={(e) => setHeaderName(e.target.value)}
+            placeholder="Header preset name"
+          />
+          <select value={headerScope} onChange={(e) => setHeaderScope(e.target.value as any)}>
+            <option value="project">Project</option>
+            <option value="global">Global</option>
+          </select>
+          <textarea
+            value={headerLatex}
+            onChange={(e) => setHeaderLatex(e.target.value)}
+            placeholder="LaTeX snippet (optional)"
+            rows={3}
+          />
+          <button onClick={saveHeaderPreset}>Save Header Preset</button>
+          <ul>
+            {headerPresets.map((p) => (
+              <li key={p.id}>
+                {p.name} ({p.scope})
+                <button onClick={() => deleteHeaderPreset(p.id)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div>
+          <h4>Layout Presets</h4>
+          <input
+            value={layoutName}
+            onChange={(e) => setLayoutName(e.target.value)}
+            placeholder="Layout preset name"
+          />
+          <button onClick={saveLayoutPreset}>Save Layout Preset</button>
+          <ul>
+            {layoutPresets.map((p) => (
+              <li key={p.id}>
+                {p.name}
+                <button onClick={() => deleteLayoutPreset(p.id)}>Remove</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <h3>Maintenance</h3>
+        <button onClick={clearCache}>Clear AI Cache</button>
       </section>
     </main>
   );

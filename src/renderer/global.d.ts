@@ -19,6 +19,13 @@ declare global {
       listExportProfiles: () => Promise<any>;
       upsertExportProfile: (profile: any) => Promise<any>;
       removeExportProfile: (id: string) => Promise<any>;
+      listHeaderPresets: () => Promise<any>;
+      upsertHeaderPreset: (preset: any) => Promise<any>;
+      removeHeaderPreset: (id: string) => Promise<any>;
+      listLayoutPresets: () => Promise<any>;
+      upsertLayoutPreset: (preset: any) => Promise<any>;
+      removeLayoutPreset: (id: string) => Promise<any>;
+      clearAiCache: () => Promise<any>;
       createProject: (name: string) => Promise<any>;
       listProjects: () => Promise<any>;
       saveMedia: (projectName: string, filename: string, base64: string) => Promise<any>;

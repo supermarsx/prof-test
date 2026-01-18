@@ -1,5 +1,6 @@
 import { Question, UUID } from '../models';
 import fs from 'fs';
+import path from 'path';
 import YAML from 'yaml';
 import { StorageBackend } from './storage';
 import { SqliteStorage } from './sqliteStorage';
@@ -20,7 +21,8 @@ export class QuestionRepository {
       this.backend = new SqliteStorage(filePath);
     }
     this.cacheRegistry = new CacheRegistry();
-    this.cache = this.cacheRegistry.getCache<UUID, Question>('questions', {
+    const namespace = filePath ? `questions:${path.basename(filePath)}` : 'questions:default';
+    this.cache = this.cacheRegistry.getCache<UUID, Question>(namespace, {
       maxSize: 1000,
       ttlMs: 5 * 60 * 1000,
     });

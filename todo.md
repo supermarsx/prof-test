@@ -16,9 +16,9 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Add basic validation for `Question`.
 - [x] Add basic validation for `TestTemplate`, `TestInstance`, `HeaderPreset`, `LayoutPreset`.
 - [x] Add per-type validation rules for choice-based questions.
-- [ ] Define schema versioning and migrations (SQLite).
-- [ ] Expand `Question` model to cover all spec fields (metadata, images, solutions).
-- [ ] Add explicit `created_at`/`updated_at` handling in repository layer.
+- [x] Define schema versioning and migrations (SQLite).
+- [x] Expand `Question` model to cover all spec fields (metadata, images, solutions).
+- [x] Add explicit `created_at`/`updated_at` handling in repository layer.
 
 ## Storage: SQLite + Caching
 - [x] Make SQLite the default storage backend for questions.
@@ -28,9 +28,9 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Add seed data for default templates/presets/settings.
 - [x] Add a basic in-memory LRU cache for question reads.
 - [x] Add AI-specific cache namespace + TTL policies.
-- [ ] Add in-memory LRU cache in main process with TTL for AI content.
-- [ ] Add cache invalidation hooks for question/test updates.
-- [ ] Add per-project cache namespaces and size limits.
+- [x] Add in-memory LRU cache in main process with TTL for AI content.
+- [x] Add cache invalidation hooks for question updates.
+- [x] Add per-project cache namespaces and size limits.
 
 ## Question Bank UX
 - [x] Add filters: subject, topic, subtopic, difficulty, tags, author.
@@ -42,10 +42,10 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Add question cloning and deletion confirmations.
 
 ## Question Editor
-- [ ] Add LaTeX-aware editor with live preview and error panel.
+- [x] Add LaTeX-aware editor with live preview and error panel.
 - [x] Add type-specific editors for MC, MS, and T/F.
 - [x] Add type-specific editor for short answer.
-- [ ] Add choice-level image support (per-choice images).
+- [x] Add choice-level image support (per-choice images).
 - [x] Add solution/explanation fields with LaTeX support.
 
 ## Test Assembly (Manual)
@@ -88,7 +88,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 ## Project Management
 - [x] Implement project creation and project list basics.
 - [x] Add project import/export (.examproj) with media/templates.
-- [ ] Add project-level templates and presets.
+- [x] Add project-level templates and presets.
 
 ## UI/UX and Theming
 - [ ] Implement glassmorphism tokens and theme switcher.
@@ -99,12 +99,14 @@ This list tracks open work derived from `spec.md` and current implementation. It
 ## Security & Privacy
 - [ ] Encrypt AI keys using OS keychain.
 - [ ] Add clear-data flows (remove keys, clear cache).
-- [ ] Add audit metadata (author and last modified).
+- [x] Add clear AI cache action in UI.
+- [x] Add audit metadata (author and last modified).
 
 ## Testing & QA
-- [ ] Add unit tests for randomization and constraint solver.
-- [ ] Add tests for export generation and LaTeX templates.
-- [ ] Add integration tests for project import/export.
+- [x] Add unit tests for randomization.
+- [ ] Add unit tests for constraint solver.
+- [x] Add tests for export generation (CSV/XLSX).
+- [x] Add integration tests for project import/export.
 - [ ] Add E2E Electron tests for key user flows.
 
 ## Build & Release

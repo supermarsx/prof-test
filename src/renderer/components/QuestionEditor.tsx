@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import { Question } from '../../models';
+import { lintLatex } from '../../utils/latexLint';
 
 const md = new MarkdownIt();
 
@@ -150,6 +151,8 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
   }
 
 
+  const latexErrors = lintLatex(draft.stem || '');
+
   return (
     <div style={{ flex: 1, display: 'flex', gap: 16 }}>
       <div style={{ flex: 1 }}>
@@ -232,6 +235,15 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
                     <input type="checkbox" checked={!!c.is_correct} onChange={(e) => updateChoice(idx, { is_correct: e.target.checked })} />
                     correct
                   </label>
+                  <select
+                    value={c.media_ref_id || ''}
+                    onChange={(e) => updateChoice(idx, { media_ref_id: e.target.value || undefined })}
+                  >
+                    <option value="">No media</option>
+                    {(draft.media_refs || []).map((m) => (
+                      <option key={m.id} value={m.id}>{m.path}</option>
+                    ))}
+                  </select>
                   <button onClick={() => removeChoice(idx)}>Remove</button>
                 </li>
               ))}
@@ -323,6 +335,16 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
       </div>
       <div style={{ width: 400, borderLeft: '1px solid #ddd', paddingLeft: 12 }}>
         <h3>Preview</h3>
+        {latexErrors.length > 0 && (
+          <div style={{ color: 'red' }}>
+            <strong>LaTeX Issues</strong>
+            <ul>
+              {latexErrors.map((err) => (
+                <li key={err}>{err}</li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div dangerouslySetInnerHTML={{ __html: md.render(draft.stem || '') }} />
       </div>
     </div>

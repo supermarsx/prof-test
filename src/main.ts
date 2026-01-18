@@ -3,14 +3,17 @@ import path from 'path';
 import fs from 'fs';
 import { QuestionRepository } from './repository/questionRepository';
 import { ExportProfileRepository } from './repository/exportProfileRepository';
+import { PresetRepository } from './repository/presetRepository';
 import { buildAnswerKeyCsv, buildQuestionMetadataCsv } from './utils/exports';
 import { buildGradingMatrixWorkbook } from './utils/exportsExcel';
+import { clearAiCache } from './utils/aiCache';
 
 let mainWindow: BrowserWindow | null = null;
 const defaultDbPath = path.join(app.getAppPath(), 'data', 'questions.db');
 let activeDbPath = defaultDbPath;
 let repo = new QuestionRepository(activeDbPath);
 let exportProfiles = new ExportProfileRepository(activeDbPath);
+let presets = new PresetRepository(activeDbPath);
 
 
 function createWindow() {
@@ -173,6 +176,67 @@ ipcMain.handle('exportProfiles:remove', async (_evt, id: string) => {
   }
 });
 
+ipcMain.handle('presets:header:list', async () => {
+  try {
+    return { ok: true, presets: presets.listHeaderPresets() };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('presets:header:upsert', async (_evt, preset: any) => {
+  try {
+    presets.upsertHeaderPreset(preset);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('presets:header:remove', async (_evt, id: string) => {
+  try {
+    presets.removeHeaderPreset(String(id));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('presets:layout:list', async () => {
+  try {
+    return { ok: true, presets: presets.listLayoutPresets() };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('presets:layout:upsert', async (_evt, preset: any) => {
+  try {
+    presets.upsertLayoutPreset(preset);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('presets:layout:remove', async (_evt, id: string) => {
+  try {
+    presets.removeLayoutPreset(String(id));
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('cache:ai:clear', async () => {
+  try {
+    clearAiCache();
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
 // Project & media IPC
 import { ProjectManager } from './repository/projectManager';
 const projectManager = new ProjectManager();
@@ -205,6 +269,7 @@ ipcMain.handle('project:activate', async (_evt, name: string) => {
     activeDbPath = projectQuestionsPath;
     repo = new QuestionRepository(activeDbPath);
     exportProfiles = new ExportProfileRepository(activeDbPath);
+    presets = new PresetRepository(activeDbPath);
     return { ok: true, active: name };
   } catch (e) {
     return { ok: false, error: String(e) };
