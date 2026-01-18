@@ -10,7 +10,7 @@ This document compares the current codebase to `spec.md` and highlights gaps, ri
 ## Current Codebase Snapshot
 - Electron main process with IPC for question CRUD and basic project/media management (`src/main.ts`).
 - Renderer is Next.js App Router (static export) with a minimal question list/editor (`src/renderer/app/*`).
-- Storage backends: SQLite default with core tables scaffolded, JSON available for tests, plus LRU cache for question reads (`src/repository/storage.ts`, `src/repository/sqliteStorage.ts`).
+- Storage backends: SQLite default with core tables scaffolded, JSON available for tests, plus LRU cache for question reads with a 100MB size cap (`src/repository/storage.ts`, `src/repository/sqliteStorage.ts`).
 - Data models for questions and test scaffolding exist, but many fields are unused.
 - Test coverage: unit tests for repository, basic UI, seeded shuffle, and project manager.
 
