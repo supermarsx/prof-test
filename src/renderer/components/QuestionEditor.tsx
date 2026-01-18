@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import MarkdownIt from 'markdown-it';
+import markdownItKatex from 'markdown-it-katex';
 import { Question } from '../../models';
 import { lintLatex } from '../../utils/latexLint';
 
-const md = new MarkdownIt();
+const md = new MarkdownIt({ html: false }).use(markdownItKatex);
 
 export function QuestionEditor({ question, onSaved }: { question: Question | null; onSaved: () => void }) {
   const [draft, setDraft] = useState<Question>(question || { id: '', type: 'multiple_choice', stem: '' } as any);
@@ -151,7 +152,19 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
   }
 
 
-  const latexErrors = lintLatex(draft.stem || '');
+  const previewSource = useMemo(() => {
+    const parts = [draft.stem || ''];
+    if (draft.solution) {
+      parts.push('\n\n**Solution**\n\n' + draft.solution);
+    }
+    if (draft.explanation) {
+      parts.push('\n\n**Explanation**\n\n' + draft.explanation);
+    }
+    return parts.join('\n');
+  }, [draft.stem, draft.solution, draft.explanation]);
+
+  const latexErrors = useMemo(() => lintLatex(previewSource), [previewSource]);
+  const previewHtml = useMemo(() => md.render(previewSource), [previewSource]);
 
   return (
     <div style={{ flex: 1, display: 'flex', gap: 16 }}>
@@ -345,7 +358,7 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
             </ul>
           </div>
         )}
-        <div dangerouslySetInnerHTML={{ __html: md.render(draft.stem || '') }} />
+        <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
       </div>
     </div>
   );
