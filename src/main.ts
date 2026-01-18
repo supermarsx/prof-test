@@ -101,15 +101,9 @@ ipcMain.handle('project:activate', async (_evt, name: string) => {
     const layout = projectManager.projectLayout(String(name));
     if (!layout) return { ok: false, error: 'Project not found' };
     activeProject = String(name);
-    // re-initialize the repo to point to project's questions file
-    const projectQuestionsPath = require('path').join(layout.dataDir, 'questions.json');
-    // create a new repo instance that uses that file path
-    // Note: to keep things simple we create a new repo and replace the global
-    // repo variable so existing IPC handlers operate on the active project
-    // (This relies on module-scoped `repo` being mutable)
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { QuestionRepository } = require('./repository/questionRepository');
-    (global as any).repo = new QuestionRepository(projectQuestionsPath);
+    // re-initialize the repo to point to project's questions database
+    const projectQuestionsPath = path.join(layout.dataDir, 'questions.db');
+    repo = new QuestionRepository(projectQuestionsPath);
     return { ok: true, active: name };
   } catch (e) {
     return { ok: false, error: String(e) };

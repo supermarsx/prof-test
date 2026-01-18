@@ -27,9 +27,9 @@ export class ProjectManager {
       if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     });
 
-    // create empty questions file if not present
-    const questionsFile = path.join(dataDir, 'questions.json');
-    if (!fs.existsSync(questionsFile)) fs.writeFileSync(questionsFile, '[]', 'utf8');
+    // create placeholder database file if not present
+    const questionsDb = path.join(dataDir, 'questions.db');
+    if (!fs.existsSync(questionsDb)) fs.writeFileSync(questionsDb, '');
 
     return { root, dataDir, mediaDir, templatesDir };
   }

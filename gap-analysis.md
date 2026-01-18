@@ -1,6 +1,6 @@
-# AGPA Check (Architecture Gap & Plan Alignment)
+# Gap Analysis (Architecture Gap & Plan Alignment)
 
-AGPA = Architecture Gap and Plan Alignment. This document compares the current codebase to `spec.md` and highlights gaps, risks, and next actions.
+This document compares the current codebase to `spec.md` and highlights gaps, risks, and next actions.
 
 ## Scope and Method
 - Source of truth: `spec.md`
@@ -9,39 +9,39 @@ AGPA = Architecture Gap and Plan Alignment. This document compares the current c
 
 ## Current Codebase Snapshot
 - Electron main process with IPC for question CRUD and basic project/media management (`src/main.ts`).
-- Renderer is Vite + React with a minimal question list/editor (`src/renderer/*`).
-- Storage backends: JSON file default, optional SQLite (`src/repository/storage.ts`, `src/repository/sqliteStorage.ts`).
+- Renderer is Next.js App Router (static export) with a minimal question list/editor (`src/renderer/app/*`).
+- Storage backends: SQLite default with core tables scaffolded, JSON available for tests, plus LRU cache for question reads (`src/repository/storage.ts`, `src/repository/sqliteStorage.ts`).
 - Data models for questions and test scaffolding exist, but many fields are unused.
 - Test coverage: unit tests for repository, basic UI, seeded shuffle, and project manager.
 
 ## Stack Alignment vs Spec (High-Level)
 | Area | Spec Target | Current State | Gap |
 | --- | --- | --- | --- |
-| Renderer framework | Next.js 16 + React | Vite + React | Migration needed |
-| Package manager | Bun | npm (package-lock) | Migration needed |
+| Renderer framework | Next.js 16 + React | Next.js App Router | Aligned |
+| Package manager | Bun | Bun scripts and bun.lock | Aligned |
 | Electron security | Context isolation, no nodeIntegration | Implemented | Partial (validation missing) |
-| Storage | SQLite + cache | JSON default, optional SQLite | Missing cache, migrations |
+| Storage | SQLite + cache | SQLite default with question LRU cache | Missing AI cache, broader caching |
 | LaTeX pipeline | pdflatex/xelatex, logs | Not implemented | Missing |
 | AI provider | Pluggable + safe | Not implemented | Missing |
 | Test builder | DnD + constraints | Not implemented | Missing |
 | Exports | CSV/Excel matrices | Not implemented | Missing |
 
 ## Data Model Coverage
-- `Question` includes most fields, but there is no validation or strict typing for per-type content.
+- `Question`, `HeaderPreset`, `LayoutPreset`, `TestTemplate`, and `TestInstance` have validation with choice-type rules; remaining per-type validations are still missing.
 - `HeaderPreset` is duplicated in `src/models.ts` (duplicate interface definition).
 - `TestTemplate`, `TestInstance`, `ExportProfile`, `Settings` exist but are not persisted or used.
 
 ## Key Gaps and Risks
-- Project activation bug: `project:activate` replaces `global.repo` instead of the module `repo`, so IPC handlers keep using the old repository instance (`src/main.ts`).
+- Project activation now swaps the module `repo` correctly; verify with runtime smoke test.
 - Renderer does not implement any of the test builder, drag-and-drop, or export flows.
 - No LaTeX compiler integration or error reporting.
 - No AI provider interface or key management.
 - No caching layer; SQLite is optional and not the default.
-- No migration framework; data files are not versioned.
+- Basic SQLite migration framework exists with seed data for defaults.
 - No theming or glassmorphism token system in UI.
-- Build scripts and tooling are Vite/npm-based, not Bun + Next.js.
+- Build scripts now target Bun + Next.js; still missing bun.lockb and build verification.
 
-## AGPA Result Summary
+## Gap Analysis Summary
 - Alignment: low (prototype-level, core features missing).
 - Primary blockers: stack migration (Next.js + Bun), data layer/migrations, LaTeX pipeline, and export generation.
 - Secondary blockers: UI structure, DnD, AI integration, and caching.

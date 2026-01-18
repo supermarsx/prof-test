@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { test, expect, afterEach } from 'vitest';
 import { QuestionRepository } from '../repository/questionRepository';
+import { JsonFileStorage } from '../repository/storage';
 
 const TMP = path.join(__dirname, 'tmp_questions.json');
 
@@ -20,7 +21,7 @@ afterEach(() => {
 });
 
 test('QuestionRepository CRUD operations', () => {
-  const repo = new QuestionRepository(TMP);
+  const repo = new QuestionRepository(undefined, new JsonFileStorage(TMP));
   const q1 = makeQuestion('q1');
   const q2 = makeQuestion('q2');
 
@@ -44,11 +45,15 @@ test('QuestionRepository CRUD operations', () => {
 });
 
 test('QuestionRepository search by text', () => {
-  const repo = new QuestionRepository(TMP);
+  const repo = new QuestionRepository(undefined, new JsonFileStorage(TMP));
   repo.add(makeQuestion('q1'));
-  repo.add({ ...makeQuestion('q2'), stem: 'This mentions algebra' });
+  repo.add({ ...makeQuestion('q2'), stem: 'This mentions algebra', subject: 'Math' } as any);
 
   const results = repo.search('algebra');
   expect(results.length).toBe(1);
   expect(results[0].id).toBe('q2');
+
+  const subjectResults = repo.search('math');
+  expect(subjectResults.length).toBe(1);
+  expect(subjectResults[0].id).toBe('q2');
 });

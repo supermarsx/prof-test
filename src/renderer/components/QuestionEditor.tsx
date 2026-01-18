@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import MarkdownIt from 'markdown-it';
 import { Question } from '../../models';
@@ -85,15 +87,54 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
           <textarea value={draft.stem || ''} onChange={(e) => updateField('stem', e.target.value)} />
         </div>
         <div>
+          <label>Subject</label>
+          <input value={draft.subject || ''} onChange={(e) => updateField('subject', e.target.value)} />
+        </div>
+        <div>
+          <label>Topic</label>
+          <input value={draft.topic || ''} onChange={(e) => updateField('topic', e.target.value)} />
+        </div>
+        <div>
+          <label>Subtopic</label>
+          <input value={draft.subtopic || ''} onChange={(e) => updateField('subtopic', e.target.value)} />
+        </div>
+        <div>
+          <label>Difficulty</label>
+          <input
+            type="number"
+            min={1}
+            max={5}
+            value={draft.difficulty ?? ''}
+            onChange={(e) => updateField('difficulty', e.target.value ? Number(e.target.value) : undefined)}
+          />
+        </div>
+        <div>
+          <label>Tags (comma-separated)</label>
+          <input
+            value={(draft.tags || []).join(', ')}
+            onChange={(e) =>
+              updateField(
+                'tags',
+                e.target.value
+                  .split(',')
+                  .map((tag) => tag.trim())
+                  .filter((tag) => tag.length > 0)
+              )
+            }
+          />
+        </div>
+        <div>
           <label>Type</label>
           <select value={draft.type} onChange={(e) => updateField('type', e.target.value as any)}>
             <option value="multiple_choice">Multiple Choice</option>
+            <option value="multiple_select">Multiple Select</option>
             <option value="short_answer">Short Answer</option>
             <option value="true_false">True/False</option>
+            <option value="matching">Matching</option>
           </select>
         </div>
 
-        {draft.type === 'multiple_choice' && (
+        {(draft.type === 'multiple_choice' || draft.type === 'multiple_select') && (
           <div>
             <h3>Choices</h3>
             <button onClick={addChoice}>Add Choice</button>

@@ -15,7 +15,7 @@ afterEach(() => {
 test('activate project by constructing repo with project questions path', () => {
   const mgr = new ProjectManager(TMP_BASE);
   const layout = mgr.createProject('p2');
-  const questionsFile = path.join(layout.dataDir, 'questions.json');
+  const questionsFile = path.join(layout.dataDir, 'questions.db');
 
   const repo = new QuestionRepository(questionsFile);
   const q = { id: 'qa', type: 'multiple_choice', stem: 'QA' } as any;

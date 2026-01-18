@@ -3,25 +3,31 @@
 This list tracks open work derived from `spec.md` and current implementation. It is intentionally exhaustive.
 
 ## Stack Migration: Next.js 16 + Bun
-- [ ] Decide renderer strategy: Next.js App Router embedded in Electron (static export) vs dev server.
-- [ ] Add `bun.lockb` and set `packageManager` to Bun in `package.json`.
-- [ ] Replace Vite renderer with Next.js 16 project structure (`src/renderer` -> `src/renderer/app`).
-- [ ] Create Next.js config for Electron-friendly builds (static output, asset prefix, base path).
-- [ ] Update Electron main to load Next.js dev server URL in dev and static build in prod.
-- [ ] Update build scripts to use `bun run` and add `dev`, `build`, `test`, `lint` variants.
-- [ ] Remove Vite-specific configs once Next.js is live.
+- [x] Decide renderer strategy: Next.js App Router embedded in Electron (static export) vs dev server.
+- [x] Add `bun.lock` and set `packageManager` to Bun in `package.json`.
+- [x] Replace Vite renderer with Next.js 16 project structure (`src/renderer` -> `src/renderer/app`).
+- [x] Create Next.js config for Electron-friendly builds (static output, asset prefix, base path).
+- [x] Update Electron main to load Next.js dev server URL in dev and static build in prod.
+- [x] Update build scripts to use `bun run` and add `dev`, `build`, `test`, `lint` variants.
+- [x] Remove Vite-specific configs once Next.js is live.
 - [ ] Verify hot reload, source maps, and production bundle size.
 
 ## Core Domain: Data Models and Validation
-- [ ] Add validation layer for `Question`, `TestTemplate`, `TestInstance`, `HeaderPreset`, `LayoutPreset`.
+- [x] Add basic validation for `Question`.
+- [x] Add basic validation for `TestTemplate`, `TestInstance`, `HeaderPreset`, `LayoutPreset`.
+- [x] Add per-type validation rules for choice-based questions.
 - [ ] Define schema versioning and migrations (SQLite).
 - [ ] Expand `Question` model to cover all spec fields (metadata, images, solutions).
 - [ ] Add explicit `created_at`/`updated_at` handling in repository layer.
 
 ## Storage: SQLite + Caching
-- [ ] Make SQLite the default storage backend for questions.
-- [ ] Add tables for tests, templates, presets, exports, settings.
-- [ ] Implement migration framework and seed data.
+- [x] Make SQLite the default storage backend for questions.
+- [x] Add basic schema version tracking for SQLite migrations.
+- [x] Add tables for tests, templates, presets, exports, settings.
+- [x] Implement a basic migration framework.
+- [x] Add seed data for default templates/presets/settings.
+- [x] Add a basic in-memory LRU cache for question reads.
+- [ ] Add AI-specific cache namespace + TTL policies.
 - [ ] Add in-memory LRU cache in main process with TTL for AI content.
 - [ ] Add cache invalidation hooks for question/test updates.
 - [ ] Add per-project cache namespaces and size limits.

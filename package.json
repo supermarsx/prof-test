@@ -2,7 +2,7 @@
   "name": "prof-test",
   "version": "0.1.0",
   "description": "Cross-platform LaTeX test generator (prototype)",
-  "packageManager": "bun@1.1.38",
+  "packageManager": "bun@1.3.5",
   "main": "dist/main.js",
   "scripts": {
     "build": "tsc && bun run renderer:build && bun run renderer:prepare",

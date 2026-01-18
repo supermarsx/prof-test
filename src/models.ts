@@ -88,23 +88,6 @@ export interface SectionDefinition {
   question_references?: Array<{ question_id?: UUID; constraintRef?: any }>;
 }
 
-export interface HeaderPreset {
-  id: UUID;
-  name: string;
-  scope: 'global' | 'project';
-  latex_snippet?: string;
-  fields_config?: {
-    show_logo?: boolean;
-    logo_path?: string;
-    show_course?: boolean;
-    show_instructor?: boolean;
-    show_date?: boolean;
-    show_duration?: boolean;
-    student_name_line?: boolean;
-    student_id_line?: boolean;
-  };
-}
-
 export interface LayoutPreset {
   id: UUID;
   name: string;

@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { Question } from '../../models';
 
@@ -25,7 +27,9 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
         <ul>
           {questions.map((q) => (
             <li key={q.id}>
-              <a href="#" onClick={(e) => { e.preventDefault(); onSelect(q); }}>{q.stem}</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); onSelect(q); }}>
+                {q.stem} {q.topic ? `(${q.topic})` : ''}
+              </a>
             </li>
           ))}
         </ul>
