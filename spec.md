@@ -17,7 +17,7 @@ The app should be self-contained, offline-first (for test authoring and LaTeX co
 
 Primary implementation:
 
-- **Electron + TypeScript app**: Electron shell, React/TS frontend, Node backend, bundled LaTeX toolchain.
+- **Electron + TypeScript app**: Electron shell, Next.js 16 (React/TS) renderer, Node backend, bundled LaTeX toolchain. Bun is the preferred package manager/runtime for scripts.
 
 ## 2. User Roles & Personas
 
@@ -489,12 +489,13 @@ High-level architecture for the Electron implementation:
   - Write path: write to SQLite inside a transaction → update/invalidate cache in the same flow.
   - All persistence-critical operations must succeed in SQLite even if the cache is disabled.
 
-## 6. Chosen Implementation – Electron + TypeScript
+## 6. Chosen Implementation - Electron + TypeScript
 
 ### 6.1 Tech Stack
 
-- **Frontend**: React + TypeScript.
+- **Frontend**: Next.js 16 (React + TypeScript, App Router).
 - **Desktop Shell**: Electron.
+- **Package Manager/Runtime**: Bun.
 - **Styling**:
   - CSS-in-JS or utility-first CSS (e.g., Tailwind) with design tokens.
   - Glassmorphism-friendly components (blurred backgrounds, subtle borders, translucency).
@@ -516,7 +517,7 @@ High-level architecture for the Electron implementation:
   - Generates CSV/Excel exports and grading matrices.
   - Hosts secure configuration (encrypted AI keys, LaTeX paths).
 
-- **Renderer Process (React UI)**
+- **Renderer Process (Next.js UI)**
   - Implements glassmorphism UI using CSS variables (for blur, opacity, border radii, etc.).
   - Implements main app screens: Question Bank, Question Editor, Test Builder, AI Auto Builder, Exports, Settings.
   - Communicates with main via IPC (e.g., `contextBridge` + `ipcRenderer` in a preload script).
@@ -737,7 +738,7 @@ High-level architecture for the Electron implementation:
 ## 11. Build & Deployment Requirements
 
 - Reproducible build scripts:
-  - Electron: `npm`/`pnpm` scripts for lint, test, build, package.
+  - Electron: `bun` scripts for lint, test, build, package.
 
 - CI pipeline (GitHub Actions / GitLab CI / etc.):
   - Lint (eslint+tsc).
@@ -761,4 +762,3 @@ High-level architecture for the Electron implementation:
 ---
 
 This specification defines the core scope and architecture for the cross-platform LaTeX test generator with AI-assisted question creation, configurable headers and presets, AI-assisted auto test building, support for questions with images, drag-and-drop test customization, and structured CSV/Excel exports with grading matrices.
-
