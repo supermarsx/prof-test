@@ -1,10 +1,32 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Question } from '../../models';
 
+const QuestionRow = React.memo(function QuestionRow({
+  question,
+  onSelect,
+  onClone,
+  onDelete,
+}: {
+  question: Question;
+  onSelect: (q: Question) => void;
+  onClone: (q: Question) => void;
+  onDelete: (q: Question) => void;
+}) {
+  return (
+    <li>
+      <a href="#" onClick={(e) => { e.preventDefault(); onSelect(question); }}>
+        {question.stem} {question.topic ? `(${question.topic})` : ''}
+      </a>
+      <button onClick={() => onClone(question)}>Clone</button>
+      <button onClick={() => onDelete(question)}>Delete</button>
+    </li>
+  );
+});
+
 export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => void }) {
-  const [questions, setQuestions] = useState<Question[]>([]);
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [query, setQuery] = useState('');
   const [subject, setSubject] = useState('');
   const [topic, setTopic] = useState('');
@@ -21,64 +43,91 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
   const [ioFormat, setIoFormat] = useState<'json' | 'yaml'>('json');
 
   useEffect(() => {
-    window.profTestAPI.listQuestions().then((q: Question[]) => setQuestions(q || []));
+    window.profTestAPI.listQuestions().then((q: Question[]) => setAllQuestions(q || []));
   }, []);
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     const res = await window.profTestAPI.listQuestions();
-    setQuestions(res || []);
-  };
+    setAllQuestions(res || []);
+  }, []);
 
-  const doSearch = async () => {
-    const res = await window.profTestAPI.searchQuestions(query);
-    setQuestions(res || []);
-  };
-
-  const applyFilters = async () => {
-    const all = await window.profTestAPI.listQuestions();
-    const filtered = (all || []).filter((q: Question) => {
-      if (subject && (!q.subject || !q.subject.toLowerCase().includes(subject.toLowerCase()))) return false;
-      if (topic && (!q.topic || !q.topic.toLowerCase().includes(topic.toLowerCase()))) return false;
-      if (subtopic && (!q.subtopic || !q.subtopic.toLowerCase().includes(subtopic.toLowerCase()))) return false;
-      if (author && (!q.author || !q.author.toLowerCase().includes(author.toLowerCase()))) return false;
-      if (difficulty) {
-        const diff = Number(difficulty);
-        if (Number.isFinite(diff) && q.difficulty !== diff) return false;
-      }
-      if (tag) {
-        const tags = (q.tags || []).map((t) => t.toLowerCase());
-        if (!tags.some((t) => t.includes(tag.toLowerCase()))) return false;
-      }
-      return true;
-    });
-    setQuestions(filtered);
-  };
-
-  const clearFilters = async () => {
+  const clearFilters = useCallback(async () => {
     setSubject('');
     setTopic('');
     setSubtopic('');
     setDifficulty('');
     setTag('');
     setAuthor('');
+    setQuery('');
     await refresh();
-  };
+  }, [refresh]);
 
-  const sortedQuestions = useMemo(() => {
-    const list = questions.slice();
-    if (sortKey === 'topic') {
-      list.sort((a, b) => (a.topic || '').localeCompare(b.topic || ''));
-    } else if (sortKey === 'difficulty') {
-      list.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
-    } else if (sortKey === 'updated_at') {
-      list.sort((a, b) => (a.updated_at || '').localeCompare(b.updated_at || ''));
+  const deferredQuery = useDeferredValue(query);
+  const deferredSubject = useDeferredValue(subject);
+  const deferredTopic = useDeferredValue(topic);
+  const deferredSubtopic = useDeferredValue(subtopic);
+  const deferredDifficulty = useDeferredValue(difficulty);
+  const deferredTag = useDeferredValue(tag);
+  const deferredAuthor = useDeferredValue(author);
+
+  const filteredQuestions = useMemo(() => {
+    const needle = deferredQuery.trim().toLowerCase();
+    let list = allQuestions;
+    if (needle) {
+      list = list.filter((q) =>
+        (q.stem && q.stem.toLowerCase().includes(needle)) ||
+        (q.subject && q.subject.toLowerCase().includes(needle)) ||
+        (q.topic && q.topic.toLowerCase().includes(needle)) ||
+        (q.subtopic && q.subtopic.toLowerCase().includes(needle)) ||
+        (q.author && q.author.toLowerCase().includes(needle)) ||
+        (q.tags && q.tags.join(' ').toLowerCase().includes(needle))
+      );
     }
-    return list;
-  }, [questions, sortKey]);
+    if (deferredSubject) {
+      list = list.filter((q) => q.subject && q.subject.toLowerCase().includes(deferredSubject.toLowerCase()));
+    }
+    if (deferredTopic) {
+      list = list.filter((q) => q.topic && q.topic.toLowerCase().includes(deferredTopic.toLowerCase()));
+    }
+    if (deferredSubtopic) {
+      list = list.filter((q) => q.subtopic && q.subtopic.toLowerCase().includes(deferredSubtopic.toLowerCase()));
+    }
+    if (deferredAuthor) {
+      list = list.filter((q) => q.author && q.author.toLowerCase().includes(deferredAuthor.toLowerCase()));
+    }
+    if (deferredDifficulty) {
+      const diff = Number(deferredDifficulty);
+      if (Number.isFinite(diff)) {
+        list = list.filter((q) => q.difficulty === diff);
+      }
+    }
+    if (deferredTag) {
+      list = list.filter((q) => (q.tags || []).some((t) => t.toLowerCase().includes(deferredTag.toLowerCase())));
+    }
+    const sorted = list.slice();
+    if (sortKey === 'topic') {
+      sorted.sort((a, b) => (a.topic || '').localeCompare(b.topic || ''));
+    } else if (sortKey === 'difficulty') {
+      sorted.sort((a, b) => (a.difficulty || 0) - (b.difficulty || 0));
+    } else if (sortKey === 'updated_at') {
+      sorted.sort((a, b) => (a.updated_at || '').localeCompare(b.updated_at || ''));
+    }
+    return sorted;
+  }, [
+    allQuestions,
+    deferredQuery,
+    deferredSubject,
+    deferredTopic,
+    deferredSubtopic,
+    deferredAuthor,
+    deferredDifficulty,
+    deferredTag,
+    sortKey,
+  ]);
 
   const tagCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const q of questions) {
+    for (const q of allQuestions) {
       for (const t of q.tags || []) {
         const key = t.trim();
         if (!key) continue;
@@ -86,7 +135,7 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
       }
     }
     return counts;
-  }, [questions]);
+  }, [allQuestions]);
 
   const renameTag = async () => {
     if (!tagFrom.trim() || !tagTo.trim()) return;
@@ -125,13 +174,13 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
   const cloneQuestion = async (q: Question) => {
     const next = { ...q, id: `q-${Math.random().toString(36).slice(2, 9)}` };
     await window.profTestAPI.addQuestion(next);
-    await refresh();
+    setAllQuestions((prev) => [...prev, next as Question]);
   };
 
   const deleteQuestion = async (q: Question) => {
     if (!confirm(`Delete question ${q.id}?`)) return;
     await window.profTestAPI.removeQuestion(q.id);
-    await refresh();
+    setAllQuestions((prev) => prev.filter((item) => item.id !== q.id));
   };
 
   return (
@@ -139,7 +188,6 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
       <div style={{ width: 300 }}>
         <div>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" />
-          <button onClick={doSearch}>Search</button>
         </div>
         <div>
           <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Filter subject" />
@@ -148,7 +196,6 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
           <input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Filter difficulty" />
           <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Filter tag" />
           <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Filter author" />
-          <button onClick={applyFilters}>Apply Filters</button>
           <button onClick={clearFilters}>Clear Filters</button>
         </div>
         <div>
@@ -195,14 +242,14 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
         </div>
         <button onClick={() => onSelect(null)}>New Question</button>
         <ul>
-          {sortedQuestions.map((q) => (
-            <li key={q.id}>
-              <a href="#" onClick={(e) => { e.preventDefault(); onSelect(q); }}>
-                {q.stem} {q.topic ? `(${q.topic})` : ''}
-              </a>
-              <button onClick={() => cloneQuestion(q)}>Clone</button>
-              <button onClick={() => deleteQuestion(q)}>Delete</button>
-            </li>
+          {filteredQuestions.map((q) => (
+            <QuestionRow
+              key={q.id}
+              question={q}
+              onSelect={(item) => onSelect(item)}
+              onClone={cloneQuestion}
+              onDelete={deleteQuestion}
+            />
           ))}
         </ul>
       </div>
