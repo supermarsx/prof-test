@@ -34,7 +34,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 
 ## Question Bank UX
 - [x] Add filters: subject, topic, subtopic, difficulty, tags, author.
-- [ ] Add sorting (last modified, difficulty, topic).
+- [x] Add sorting (last modified, difficulty, topic).
 - [ ] Support bulk import/export (JSON/YAML).
 - [ ] Add tag management (create, rename, merge).
 - [ ] Add image upload flow and placement controls.
