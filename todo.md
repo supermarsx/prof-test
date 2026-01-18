@@ -33,18 +33,18 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [ ] Add per-project cache namespaces and size limits.
 
 ## Question Bank UX
-- [ ] Add filters: subject, topic, subtopic, difficulty, tags, author.
+- [x] Add filters: subject, topic, subtopic, difficulty, tags, author.
 - [ ] Add sorting (last modified, difficulty, topic).
 - [ ] Support bulk import/export (JSON/YAML).
 - [ ] Add tag management (create, rename, merge).
 - [ ] Add image upload flow and placement controls.
-- [ ] Add question cloning and deletion confirmations.
+- [x] Add question cloning and deletion confirmations.
 
 ## Question Editor
 - [ ] Add LaTeX-aware editor with live preview and error panel.
 - [ ] Add type-specific editors for MC, MS, T/F, short answer.
 - [ ] Add choice-level image support (per-choice images).
-- [ ] Add solution/explanation fields with LaTeX support.
+- [x] Add solution/explanation fields with LaTeX support.
 
 ## Test Assembly (Manual)
 - [ ] Implement section creation and reordering UI.
@@ -65,10 +65,10 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [ ] Add rate limiting and retry handling.
 
 ## Randomization & Versioning
-- [ ] Implement deterministic shuffling with seed.
-- [ ] Shuffle choices for MC and MS questions.
+- [x] Implement deterministic shuffling with seed.
+- [x] Shuffle choices for MC and MS questions.
 - [ ] Maintain image-to-question pairing after shuffle.
-- [ ] Add version labeling (A-T) and mapping to answer keys.
+- [x] Add version labeling (A-T) and mapping to answer keys.
 
 ## LaTeX Pipeline
 - [ ] Implement template system for header/layout presets.

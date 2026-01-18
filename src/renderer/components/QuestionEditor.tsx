@@ -109,6 +109,19 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
           />
         </div>
         <div>
+          <label>Estimated Time (min)</label>
+          <input
+            type="number"
+            min={0}
+            value={draft.estimated_time_min ?? ''}
+            onChange={(e) => updateField('estimated_time_min', e.target.value ? Number(e.target.value) : undefined)}
+          />
+        </div>
+        <div>
+          <label>Author</label>
+          <input value={draft.author || ''} onChange={(e) => updateField('author', e.target.value)} />
+        </div>
+        <div>
           <label>Tags (comma-separated)</label>
           <input
             value={(draft.tags || []).join(', ')}
@@ -152,6 +165,15 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
             </ul>
           </div>
         )}
+
+        <div>
+          <label>Solution</label>
+          <textarea value={draft.solution || ''} onChange={(e) => updateField('solution', e.target.value)} />
+        </div>
+        <div>
+          <label>Explanation</label>
+          <textarea value={draft.explanation || ''} onChange={(e) => updateField('explanation', e.target.value)} />
+        </div>
 
         <div>
           <button onClick={save} disabled={saving}>{saving ? 'Saving...' : 'Save'}</button>
