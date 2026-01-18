@@ -87,7 +87,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 
 ## Project Management
 - [x] Implement project creation and project list basics.
-- [ ] Add project import/export (.examproj) with media/templates.
+- [x] Add project import/export (.examproj) with media/templates.
 - [ ] Add project-level templates and presets.
 
 ## UI/UX and Theming

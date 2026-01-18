@@ -33,7 +33,7 @@ This document compares the current codebase to `spec.md` and highlights gaps, ri
 
 ## Key Gaps and Risks
 - Project activation now swaps the module `repo` correctly; verify with runtime smoke test.
-- Renderer does not implement any of the test builder or drag-and-drop flows; export utilities exist for CSV/Excel with a basic exports panel and profiles.
+- Renderer does not implement any of the test builder or drag-and-drop flows; project import/export is wired and export utilities exist for CSV/Excel with a basic exports panel and profiles.
 - No LaTeX compiler integration or error reporting.
 - No AI provider interface or key management.
 - No caching layer; SQLite is optional and not the default.
