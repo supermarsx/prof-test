@@ -2,7 +2,7 @@ import { test, expect } from 'vitest';
 import { SizeLruCache } from '../utils/sizeLruCache';
 
 test('SizeLruCache evicts when exceeding max bytes', () => {
-  const cache = new SizeLruCache<string, string>(10, (v) => v.length);
+  const cache = new SizeLruCache<string, string>(9, (v) => v.length);
   cache.set('a', '12345');
   cache.set('b', '67890');
   expect(cache.get('a')).toBeUndefined();

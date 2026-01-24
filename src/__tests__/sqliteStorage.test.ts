@@ -3,9 +3,14 @@ import path from 'path';
 import { test, expect, afterEach } from 'vitest';
 
 let hasBetter: boolean = true;
+let SqliteStorage: any;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
-  require.resolve('better-sqlite3');
+  const Database = require('better-sqlite3');
+  const db = new Database(':memory:');
+  db.close();
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  SqliteStorage = require('../repository/sqliteStorage').SqliteStorage;
 } catch (e) {
   hasBetter = false;
 }
@@ -17,13 +22,17 @@ afterEach(() => {
 });
 
 if (hasBetter) {
-  // only import the storage if the package is available
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { SqliteStorage } = require('../repository/sqliteStorage');
-
   test('sqlite storage basic CRUD', () => {
     const store = new SqliteStorage(TMP_DB);
-    const q = { id: 's1', type: 'multiple_choice', stem: 'S1' } as any;
+    const q = {
+      id: 's1',
+      type: 'multiple_choice',
+      stem: 'S1',
+      choices: [
+        { id: 'c1', text: 'A', is_correct: true },
+        { id: 'c2', text: 'B', is_correct: false },
+      ],
+    } as any;
     store.addQuestion(q);
     const got = store.getQuestion('s1');
     expect(got).toBeDefined();

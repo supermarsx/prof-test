@@ -13,15 +13,17 @@ if (typeof document === 'undefined') {
 }
 
 test('shows validation error when stem empty', () => {
-  (globalThis as any).profTestAPI = {
+  const api = {
     addQuestion: vi.fn(),
     updateQuestion: vi.fn(),
+    getActiveProject: vi.fn().mockResolvedValue({ ok: true, active: null }),
+    listMedia: vi.fn().mockResolvedValue([]),
   };
+  (globalThis as any).profTestAPI = api;
+  (globalThis as any).window.profTestAPI = api;
   const saved = vi.fn();
   const { getByText } = render(<QuestionEditor question={null as any} onSaved={saved} />);
   const saveBtn = getByText('Save');
   fireEvent.click(saveBtn);
   expect(getByText('Stem is required')).toBeDefined();
 });
-
-

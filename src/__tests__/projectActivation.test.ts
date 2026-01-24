@@ -3,6 +3,7 @@ import path from 'path';
 import { test, expect, afterEach } from 'vitest';
 import { ProjectManager } from '../repository/projectManager';
 import { QuestionRepository } from '../repository/questionRepository';
+import { JsonFileStorage } from '../repository/storage';
 
 const TMP_BASE = path.join(__dirname, 'tmp_projects2');
 
@@ -15,10 +16,18 @@ afterEach(() => {
 test('activate project by constructing repo with project questions path', () => {
   const mgr = new ProjectManager(TMP_BASE);
   const layout = mgr.createProject('p2');
-  const questionsFile = path.join(layout.dataDir, 'questions.db');
+  const questionsFile = path.join(layout.dataDir, 'questions.json');
 
-  const repo = new QuestionRepository(questionsFile);
-  const q = { id: 'qa', type: 'multiple_choice', stem: 'QA' } as any;
+  const repo = new QuestionRepository(undefined, new JsonFileStorage(questionsFile));
+  const q = {
+    id: 'qa',
+    type: 'multiple_choice',
+    stem: 'QA',
+    choices: [
+      { id: 'c1', text: 'A', is_correct: true },
+      { id: 'c2', text: 'B', is_correct: false },
+    ],
+  } as any;
   repo.add(q);
 
   const all = repo.list();
