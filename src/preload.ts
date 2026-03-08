@@ -38,4 +38,18 @@ contextBridge.exposeInMainWorld('profTestAPI', {
   getActiveProject: () => ipcRenderer.invoke('project:getActive'),
   exportProject: (name: string, outPath: string) => ipcRenderer.invoke('project:export', name, outPath),
   importProject: (archivePath: string, name: string) => ipcRenderer.invoke('project:import', archivePath, name),
+
+  // constraint solver
+  solverSelect: (constraints: any) => ipcRenderer.invoke('solver:select', constraints),
+  solverSelectFromTemplate: (template: any) => ipcRenderer.invoke('solver:selectFromTemplate', template),
+
+  // test generation
+  generateTestVersions: (questionIds: string[], versions: number, seed?: number) =>
+    ipcRenderer.invoke('test:generateVersions', questionIds, versions, seed),
+
+  // LaTeX rendering & compilation
+  renderLatexDocument: (title: string, questionIds: string[], options?: any) =>
+    ipcRenderer.invoke('latex:renderDocument', title, questionIds, options),
+  compileLatex: (source: string, options?: any) =>
+    ipcRenderer.invoke('latex:compile', source, options),
 });

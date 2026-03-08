@@ -7,6 +7,10 @@ import { PresetRepository } from './repository/presetRepository';
 import { buildAnswerKeyCsv, buildQuestionMetadataCsv } from './utils/exports';
 import { buildGradingMatrixWorkbook } from './utils/exportsExcel';
 import { clearAiCache } from './utils/aiCache';
+import { selectQuestions, constraintsFromTemplate, SelectionConstraints } from './utils/constraintSolver';
+import { renderTestDocument, renderAssembledTest, RenderOptions } from './utils/latexTemplateRenderer';
+import { compileLatex, CompileOptions } from './utils/latexCompiler';
+import { generateTestVersions } from './utils/testGenerator';
 
 let mainWindow: BrowserWindow | null = null;
 const defaultDbPath = path.join(app.getAppPath(), 'data', 'questions.db');
@@ -312,6 +316,63 @@ ipcMain.handle('project:import', async (_evt, archivePath: string, name: string)
   try {
     const layout = projectManager.importProject(String(archivePath), String(name));
     return { ok: true, layout };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+// --- Constraint solver IPC ---
+ipcMain.handle('solver:select', async (_evt, constraints: SelectionConstraints) => {
+  try {
+    const questions = repo.list();
+    const result = selectQuestions(questions, constraints);
+    return { ok: true, selected: result.selected, warnings: result.warnings };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('solver:selectFromTemplate', async (_evt, templateJson: any) => {
+  try {
+    const constraints = constraintsFromTemplate(templateJson);
+    const questions = repo.list();
+    const result = selectQuestions(questions, constraints);
+    return { ok: true, selected: result.selected, warnings: result.warnings };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+// --- Test generation IPC ---
+ipcMain.handle('test:generateVersions', async (_evt, questionIds: string[], versions: number, seed?: number) => {
+  try {
+    const all = repo.list();
+    const idSet = new Set(questionIds.map(String));
+    const questions = all.filter((q) => idSet.has(q.id));
+    const result = generateTestVersions(questions, { versions, seed });
+    return { ok: true, versions: result };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+// --- LaTeX rendering IPC ---
+ipcMain.handle('latex:renderDocument', async (_evt, title: string, questionIds: string[], options?: RenderOptions) => {
+  try {
+    const all = repo.list();
+    const idSet = new Set(questionIds.map(String));
+    const questions = all.filter((q) => idSet.has(q.id));
+    const source = renderTestDocument(String(title), questions, options);
+    return { ok: true, source };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
+});
+
+ipcMain.handle('latex:compile', async (_evt, source: string, options?: CompileOptions) => {
+  try {
+    const result = await compileLatex(String(source), options);
+    return { ok: result.success, pdfPath: result.pdfPath, log: result.log, errors: result.errors };
   } catch (e) {
     return { ok: false, error: String(e) };
   }
