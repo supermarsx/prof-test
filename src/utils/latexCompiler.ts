@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 
 export interface CompilationResult {
   success: boolean;
@@ -61,9 +62,21 @@ export async function compileLatex(
   source: string,
   options: CompileOptions = {},
 ): Promise<CompilationResult> {
+  const ALLOWED_ENGINES: LatexEngine[] = ['pdflatex', 'xelatex'];
   const engine = options.engine ?? 'pdflatex';
-  const engineBin = options.enginePath ?? engine;
-  const outDir = options.outputDir ?? fs.mkdtempSync(path.join(require('os').tmpdir(), 'proftest-'));
+  if (!ALLOWED_ENGINES.includes(engine)) {
+    return { success: false, log: '', errors: [{ message: `Unsupported engine: ${engine}` }] };
+  }
+  // Validate enginePath – only accept if it ends with an allowed engine name
+  let engineBin = engine;
+  if (options.enginePath) {
+    const base = path.basename(options.enginePath);
+    if (!ALLOWED_ENGINES.some((e) => base === e || base === `${e}.exe`)) {
+      return { success: false, log: '', errors: [{ message: 'Invalid engine path' }] };
+    }
+    engineBin = options.enginePath;
+  }
+  const outDir = options.outputDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'proftest-'));
   const texFile = path.join(outDir, 'test.tex');
   fs.writeFileSync(texFile, source, 'utf8');
 

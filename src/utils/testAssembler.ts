@@ -1,5 +1,10 @@
 import { Question, QuestionInstance, SectionDefinition, TestTemplate } from '../models';
 
+let _instanceSeq = 0;
+function nextInstanceId(questionId: string, sectionId: string): string {
+  return `${questionId}_sec_${sectionId}_${++_instanceSeq}_${Date.now()}`;
+}
+
 /**
  * An assembled section holds resolved question instances with points and
  * include/exclude state so the UI can toggle visibility without removing.
@@ -81,7 +86,7 @@ export function addQuestionToSection(
       if (s.definition.id !== sectionId) return s;
       const orderIndex = s.questions.length;
       const instance: QuestionInstance = {
-        id: `${question.id}_sec_${sectionId}_${orderIndex}`,
+        id: nextInstanceId(question.id, sectionId),
         base_question_id: question.id,
         points,
         order_index: orderIndex,
@@ -178,7 +183,7 @@ export function moveQuestionBetweenSections(
       const insertAt = toIndex != null ? toIndex : qs.length;
       const newInstance: QuestionInstance = {
         ...item.instance,
-        id: `${item.instance.base_question_id}_sec_${toSectionId}_${insertAt}`,
+        id: nextInstanceId(item.instance.base_question_id ?? item.instance.id, toSectionId),
         order_index: insertAt,
       };
       qs.splice(insertAt, 0, { ...item, instance: newInstance });

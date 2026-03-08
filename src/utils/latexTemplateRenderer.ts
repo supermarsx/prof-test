@@ -10,11 +10,18 @@ import { AssembledTest } from './testAssembler';
 // ---------------------------------------------------------------------------
 
 function escapeLatex(text: string): string {
-  // Escape common TeX special characters but preserve existing LaTeX commands
+  // Escape TeX special characters in plain-text fields (titles, names).
+  // Question stems are passed through as-is since they contain intentional LaTeX.
   return text
-    .replace(/(?<!\\)&/g, '\\&')
-    .replace(/(?<!\\)%/g, '\\%')
-    .replace(/(?<!\\)#/g, '\\#');
+    .replace(/\\/g, '\\textbackslash ')
+    .replace(/&/g, '\\&')
+    .replace(/%/g, '\\%')
+    .replace(/#/g, '\\#')
+    .replace(/_/g, '\\_')
+    .replace(/\^/g, '\\textasciicircum ')
+    .replace(/~/g, '\\textasciitilde ')
+    .replace(/\{/g, '\\{')
+    .replace(/\}/g, '\\}');
 }
 
 function marginsToLatex(margins?: { top?: number; bottom?: number; left?: number; right?: number }): string {
@@ -46,8 +53,21 @@ export function renderPreamble(layout?: LayoutPreset): string {
     if (geo) lines.push(geo);
   }
   if (fontFamily && fontFamily !== 'Computer Modern') {
-    lines.push(`\\usepackage{${fontFamily}}`);
-    lines.push(`\\renewcommand{\\familydefault}{\\sfdefault}`);
+    // Map common font names to LaTeX packages
+    const fontPackageMap: Record<string, string> = {
+      'Times': 'times',
+      'Times New Roman': 'times',
+      'Helvetica': 'helvet',
+      'Arial': 'helvet',
+      'Palatino': 'palatino',
+      'Courier': 'courier',
+    };
+    const pkg = fontPackageMap[fontFamily] ?? fontFamily.toLowerCase();
+    // Only include if it looks like a valid LaTeX identifier (alphanumeric)
+    if (/^[a-z][a-z0-9]*$/i.test(pkg)) {
+      lines.push(`\\usepackage{${pkg}}`);
+      lines.push(`\\renewcommand{\\familydefault}{\\sfdefault}`);
+    }
   }
   if (layout?.line_spacing && layout.line_spacing !== 1) {
     lines.push('\\usepackage{setspace}');
@@ -94,6 +114,12 @@ export function renderHeader(header?: HeaderPreset, versionLabel?: string): stri
 // Questions
 // ---------------------------------------------------------------------------
 
+/** Sanitize a file path for safe inclusion in LaTeX commands. */
+function sanitizeMediaPath(p: string): string {
+  // Strip characters that could inject LaTeX commands
+  return p.replace(/[{}\\$%#&~^]/g, '');
+}
+
 function renderQuestion(q: Question, index: number, showPoints?: boolean, points?: number): string {
   const lines: string[] = [];
   const pointStr = showPoints && points != null ? ` \\hfill (${points} pts)` : '';
@@ -101,11 +127,12 @@ function renderQuestion(q: Question, index: number, showPoints?: boolean, points
   // Media above/below
   if (q.media_refs) {
     for (const m of q.media_refs) {
+      const safePath = sanitizeMediaPath(m.path);
       if (m.placement === 'above') {
-        lines.splice(lines.length - 1, 0, `\\begin{center}\\includegraphics[width=0.5\\textwidth]{${m.path}}\\end{center}`);
+        lines.splice(lines.length - 1, 0, `\\begin{center}\\includegraphics[width=0.5\\textwidth]{${safePath}}\\end{center}`);
       }
       if (m.placement === 'below') {
-        lines.push(`\\begin{center}\\includegraphics[width=0.5\\textwidth]{${m.path}}\\end{center}`);
+        lines.push(`\\begin{center}\\includegraphics[width=0.5\\textwidth]{${safePath}}\\end{center}`);
       }
     }
   }

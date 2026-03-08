@@ -107,7 +107,11 @@ export function selectQuestions(pool: Question[], constraints: SelectionConstrai
   };
 
   fillBucket(constraints.topic_distribution, (q) => q.topic, 'topic');
-  fillBucket(constraints.difficulty_distribution, (q) => q.difficulty != null ? String(q.difficulty) : undefined, 'difficulty');
+  fillBucket(
+    constraints.difficulty_distribution,
+    (q) => (q.difficulty != null ? String(q.difficulty) : undefined),
+    'difficulty',
+  );
   fillBucket(constraints.type_distribution, (q) => q.type, 'type');
 
   // Step 3 – fill remaining slots up to total
