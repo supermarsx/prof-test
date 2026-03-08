@@ -39,6 +39,8 @@ export interface Question {
   author?: string;
   created_at?: string; // ISO datetime
   updated_at?: string; // ISO datetime
+  usage_count?: number;
+  last_used_at?: string; // ISO datetime
 }
 
 export interface HeaderPreset {
@@ -117,6 +119,17 @@ export interface TestInstance {
   latex_source_path?: string;
   pdf_path?: string;
   answer_key?: Record<string, any>;
+}
+
+export interface VersionChangeEntry {
+  version_label: string;
+  changes: string[];
+}
+
+export interface VersionChangeLog {
+  template_id: string;
+  generated_at: string; // ISO datetime
+  entries: VersionChangeEntry[];
 }
 
 export interface ExportProfile {

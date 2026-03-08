@@ -56,8 +56,8 @@ export function buildQuestionMetadataCsv(questions: Question[]): string {
       csvEscape(q.difficulty !== undefined ? String(q.difficulty) : ''),
       csvEscape((q.tags || []).join(';')),
       csvEscape(q.estimated_time_min !== undefined ? String(q.estimated_time_min) : ''),
-      csvEscape(''),
-      csvEscape(''),
+      csvEscape(q.usage_count !== undefined ? String(q.usage_count) : '0'),
+      csvEscape(q.last_used_at || ''),
     ];
     rows.push(row.join(','));
   }

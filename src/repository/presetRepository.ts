@@ -1,16 +1,11 @@
-import fs from 'fs';
-import path from 'path';
 import { HeaderPreset, LayoutPreset } from '../models';
+import { getDb } from './dbManager';
 
 export class PresetRepository {
   private db: any;
 
   constructor(dbPath: string) {
-    const dir = path.dirname(dbPath);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const Database = require('better-sqlite3');
-    this.db = new Database(dbPath);
+    this.db = getDb(dbPath);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS header_presets (
         id TEXT PRIMARY KEY,

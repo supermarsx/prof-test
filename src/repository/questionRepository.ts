@@ -92,6 +92,17 @@ export class QuestionRepository {
     this.cache.delete(id);
   }
 
+  incrementUsage(id: UUID): void {
+    const q = this.get(id);
+    if (!q) return;
+    const updated = {
+      ...q,
+      usage_count: (q.usage_count || 0) + 1,
+      last_used_at: new Date().toISOString(),
+    };
+    this.update(id, updated);
+  }
+
   exportToJson(filePath: string) {
     const data = this.backend.listQuestions();
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');

@@ -28,9 +28,8 @@ export class ProjectManager {
       if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
     });
 
-    // create placeholder database file if not present
-    const questionsDb = path.join(dataDir, 'questions.db');
-    if (!fs.existsSync(questionsDb)) fs.writeFileSync(questionsDb, '');
+    // The SQLite database will be created by SqliteStorage when first accessed.
+    // Do NOT create an empty file here — better-sqlite3 needs either a valid DB or non-existent path.
 
     return { root, dataDir, mediaDir, templatesDir };
   }
