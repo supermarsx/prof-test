@@ -10,9 +10,9 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "types": ["node", "jsdom", "markdown-it"]
   },
   "include": ["src/**/*"],
-  "types": ["node", "vitest/globals"]
+  "exclude": ["src/main.ts", "src/preload.ts"]
 }
-

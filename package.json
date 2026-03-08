@@ -1,52 +1,53 @@
 {
   "name": "prof-test",
   "version": "0.1.0",
-  "description": "Cross-platform LaTeX test generator (prototype)",
+  "description": "Cross-platform LaTeX test generator (Tauri + Next.js)",
   "packageManager": "bun@1.3.5",
-  "main": "dist/main.js",
   "scripts": {
     "build": "tsc && bun run renderer:build && bun run renderer:prepare",
-    "start": "node dist/main.js",
-    "dev": "bun run electron:dev",
-    "main:watch": "tsc -w",
-    "electron:build": "bun run build && electron .",
-    "electron:dev": "cross-env ELECTRON_DEV=1 concurrently \"bun run main:watch\" \"bun run renderer:dev\" \"bun run electron:run\"",
-    "electron:run": "electron .",
+    "backend:dev": "bun run --watch src/backend.ts",
+    "dev": "bunx tauri dev",
+    "tauri": "tauri",
     "renderer:build": "bunx next build src/renderer",
     "renderer:dev": "bunx next dev src/renderer -p 3000",
     "renderer:prepare": "node scripts/copy-renderer-out.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "echo \"No linter configured\" && exit 0"
+    "lint": "tsc --noEmit"
   },
   "vitest": {
     "environment": "jsdom"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
-    "@types/electron": "^1.4.38",
     "@types/adm-zip": "^0.5.7",
+    "@types/jsdom": "^28.0.0",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.4",
     "@types/react-dom": "^19.2.3",
-    "concurrently": "^9.2.1",
-    "cross-env": "^10.1.0",
-    "electron": "^26.0.0",
     "jsdom": "^27.2.0",
     "typescript": "^5.0.0",
     "vitest": "^1.0.0"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0",
+    "@tauri-apps/plugin-os": "^2.0.0",
+    "@tauri-apps/plugin-process": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "adm-zip": "^0.5.16",
+    "better-sqlite3": "^8.4.0",
+    "katex": "^0.16.22",
     "markdown-it": "^14.1.0",
     "markdown-it-katex": "^2.0.3",
     "next": "canary",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "better-sqlite3": "^8.4.0",
-    "katex": "^0.16.22",
-    "yaml": "^2.6.1",
     "xlsx": "^0.18.5",
-    "adm-zip": "^0.5.16"
+    "yaml": "^2.6.1"
   }
 }
