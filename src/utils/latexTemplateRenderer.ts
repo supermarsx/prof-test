@@ -10,18 +10,20 @@ import { AssembledTest } from './testAssembler';
 // ---------------------------------------------------------------------------
 
 function escapeLatex(text: string): string {
-  // Escape TeX special characters in plain-text fields (titles, names).
-  // Question stems are passed through as-is since they contain intentional LaTeX.
-  return text
-    .replace(/\\/g, '\\textbackslash ')
-    .replace(/&/g, '\\&')
-    .replace(/%/g, '\\%')
-    .replace(/#/g, '\\#')
-    .replace(/_/g, '\\_')
-    .replace(/\^/g, '\\textasciicircum ')
-    .replace(/~/g, '\\textasciitilde ')
-    .replace(/\{/g, '\\{')
-    .replace(/\}/g, '\\}');
+  // Single-pass replacement to avoid re-escaping issues.
+  // Handles all TeX special characters: \ & % # _ ^ ~ { }
+  const SPECIAL: Record<string, string> = {
+    '\\': '\\textbackslash ',
+    '&': '\\&',
+    '%': '\\%',
+    '#': '\\#',
+    '_': '\\_',
+    '^': '\\textasciicircum ',
+    '~': '\\textasciitilde ',
+    '{': '\\{',
+    '}': '\\}',
+  };
+  return text.replace(/[\\&%#_^~{}]/g, (ch) => SPECIAL[ch] ?? ch);
 }
 
 function marginsToLatex(margins?: { top?: number; bottom?: number; left?: number; right?: number }): string {
