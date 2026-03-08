@@ -1,2 +1,10 @@
 /node_modules
 /dist
+
+# Tauri build artifacts
+/src-tauri/target/
+/src-tauri/sidecar/*.exe
+
+# OS files
+.DS_Store
+Thumbs.db

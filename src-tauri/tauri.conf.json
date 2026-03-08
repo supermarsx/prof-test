@@ -1,0 +1,59 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicosmeenk/tauri/refs/heads/dev/crates/tauri-config-schema/schema.json",
+  "productName": "ProfTest",
+  "version": "0.1.0",
+  "identifier": "com.proftest.app",
+  "build": {
+    "beforeDevCommand": "bun run renderer:dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "bun run renderer:build && bun run renderer:prepare",
+    "frontendDist": "../dist/renderer"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ProfTest - LaTeX Test Generator",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset: https://asset.localhost; font-src 'self' data:; connect-src 'self' https: http://localhost:*; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": [],
+    "externalBin": [
+      "sidecar/proftest-backend"
+    ],
+    "windows": {
+      "wix": {
+        "language": "en-US"
+      }
+    }
+  },
+  "plugins": {
+    "dialog": {},
+    "fs": {
+      "scope": {
+        "allow": ["$APPDATA/**", "$HOME/**", "$DOCUMENT/**", "$DESKTOP/**"],
+        "deny": []
+      }
+    },
+    "shell": {
+      "open": true
+    }
+  }
+}
