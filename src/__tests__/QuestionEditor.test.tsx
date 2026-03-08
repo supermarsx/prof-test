@@ -3,7 +3,17 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { test, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { QuestionEditor } from '../renderer/components/QuestionEditor';
-import { render, screen, fireEvent } from '@testing-library/react';
+
+// Mock the api module so QuestionEditor uses our stubs
+vi.mock('../renderer/lib/api', () => ({
+  api: {
+    addQuestion: vi.fn(),
+    updateQuestion: vi.fn(),
+    getActiveProject: vi.fn().mockResolvedValue({ ok: true, active: null }),
+    listMedia: vi.fn().mockResolvedValue([]),
+  },
+  initAPI: vi.fn(),
+}));
 
 // Ensure DOM globals when running in non-jsdom environment
 if (typeof document === 'undefined') {
@@ -13,14 +23,6 @@ if (typeof document === 'undefined') {
 }
 
 test('shows validation error when stem empty', () => {
-  const api = {
-    addQuestion: vi.fn(),
-    updateQuestion: vi.fn(),
-    getActiveProject: vi.fn().mockResolvedValue({ ok: true, active: null }),
-    listMedia: vi.fn().mockResolvedValue([]),
-  };
-  (globalThis as any).profTestAPI = api;
-  (globalThis as any).window.profTestAPI = api;
   const saved = vi.fn();
   const { getByText } = render(<QuestionEditor question={null as any} onSaved={saved} />);
   const saveBtn = getByText('Save');

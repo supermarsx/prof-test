@@ -1,7 +1,13 @@
 'use client';
 
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { api } from '../lib/api';
 import { Question } from '../../models';
+
+const difficultyClass = (d: number | undefined) => {
+  if (!d || d < 1 || d > 5) return '';
+  return `difficulty-${d}` as const;
+};
 
 const QuestionRow = React.memo(function QuestionRow({
   question,
@@ -15,13 +21,18 @@ const QuestionRow = React.memo(function QuestionRow({
   onDelete: (q: Question) => void;
 }) {
   return (
-    <li>
-      <a href="#" onClick={(e) => { e.preventDefault(); onSelect(question); }}>
+    <div className="glass-card flex items-center gap-sm">
+      <button type="button" className="btn-ghost btn-sm flex-1 truncate" onClick={() => onSelect(question)}>
         {question.stem} {question.topic ? `(${question.topic})` : ''}
-      </a>
-      <button onClick={() => onClone(question)}>Clone</button>
-      <button onClick={() => onDelete(question)}>Delete</button>
-    </li>
+      </button>
+      {question.type && <span className="badge badge-accent">{question.type}</span>}
+      {question.difficulty != null && (
+        <span className={`badge ${difficultyClass(question.difficulty)}`}>D{question.difficulty}</span>
+      )}
+      {question.topic && <span className="badge">{question.topic}</span>}
+      <button className="btn-ghost btn-sm" onClick={() => onClone(question)}>Clone</button>
+      <button className="btn-danger btn-sm" onClick={() => onDelete(question)}>Delete</button>
+    </div>
   );
 });
 
@@ -41,13 +52,16 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
   const [exportPath, setExportPath] = useState('');
   const [importMode, setImportMode] = useState<'append' | 'replace'>('append');
   const [ioFormat, setIoFormat] = useState<'json' | 'yaml'>('json');
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [renaming, setRenaming] = useState(false);
 
   useEffect(() => {
-    window.profTestAPI.listQuestions().then((q: Question[]) => setAllQuestions(q || []));
+    api.listQuestions().then((q: Question[]) => setAllQuestions(q || []));
   }, []);
 
   const refresh = useCallback(async () => {
-    const res = await window.profTestAPI.listQuestions();
+    const res = await api.listQuestions();
     setAllQuestions(res || []);
   }, []);
 
@@ -139,65 +153,87 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
 
   const renameTag = async () => {
     if (!tagFrom.trim() || !tagTo.trim()) return;
-    const all = await window.profTestAPI.listQuestions();
-    for (const q of all || []) {
-      if (!q.tags) continue;
-      const nextTags = q.tags.map((t: string) => (t === tagFrom ? tagTo : t));
-      if (nextTags.join('|') !== q.tags.join('|')) {
-        await window.profTestAPI.updateQuestion(q.id, { tags: nextTags });
+    setRenaming(true);
+    try {
+      const all = await api.listQuestions();
+      for (const q of all || []) {
+        if (!q.tags) continue;
+        const nextTags = q.tags.map((t: string) => (t === tagFrom ? tagTo : t));
+        if (nextTags.join('|') !== q.tags.join('|')) {
+          await api.updateQuestion(q.id, { tags: nextTags });
+        }
       }
+      setTagFrom('');
+      setTagTo('');
+      await refresh();
+    } finally {
+      setRenaming(false);
     }
-    setTagFrom('');
-    setTagTo('');
-    await refresh();
   };
 
   const exportQuestions = async () => {
     if (!exportPath.trim()) return;
-    if (ioFormat === 'json') {
-      await window.profTestAPI.exportQuestionsJson(exportPath.trim());
-    } else {
-      await window.profTestAPI.exportQuestionsYaml(exportPath.trim());
+    setExporting(true);
+    try {
+      if (ioFormat === 'json') {
+        await api.exportQuestionsJson(exportPath.trim());
+      } else {
+        await api.exportQuestionsYaml(exportPath.trim());
+      }
+    } finally {
+      setExporting(false);
     }
   };
 
   const importQuestions = async () => {
     if (!importPath.trim()) return;
-    if (ioFormat === 'json') {
-      await window.profTestAPI.importQuestionsJson(importPath.trim(), importMode);
-    } else {
-      await window.profTestAPI.importQuestionsYaml(importPath.trim(), importMode);
+    setImporting(true);
+    try {
+      if (ioFormat === 'json') {
+        await api.importQuestionsJson(importPath.trim(), importMode);
+      } else {
+        await api.importQuestionsYaml(importPath.trim(), importMode);
+      }
+      await refresh();
+    } finally {
+      setImporting(false);
     }
-    await refresh();
   };
 
   const cloneQuestion = async (q: Question) => {
     const next = { ...q, id: `q-${Math.random().toString(36).slice(2, 9)}` };
-    await window.profTestAPI.addQuestion(next);
+    await api.addQuestion(next);
     setAllQuestions((prev) => [...prev, next as Question]);
   };
 
   const deleteQuestion = async (q: Question) => {
     if (!confirm(`Delete question ${q.id}?`)) return;
-    await window.profTestAPI.removeQuestion(q.id);
+    await api.removeQuestion(q.id);
     setAllQuestions((prev) => prev.filter((item) => item.id !== q.id));
   };
 
   return (
-    <div style={{ display: 'flex', gap: 16 }}>
-      <div style={{ width: 300 }}>
+    <div className="flex gap-md fade-in">
+      {/* Left sidebar */}
+      <div className="panel flex flex-col gap-sm overflow-auto" style={{ width: 300, minWidth: 300 }}>
+        {/* Search */}
         <div>
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search" aria-label="Search questions" />
         </div>
-        <div>
-          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Filter subject" />
-          <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Filter topic" />
-          <input value={subtopic} onChange={(e) => setSubtopic(e.target.value)} placeholder="Filter subtopic" />
-          <input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Filter difficulty" />
-          <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Filter tag" />
-          <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Filter author" />
-          <button onClick={clearFilters}>Clear Filters</button>
+
+        {/* Filters */}
+        <div className="glass-card flex flex-col gap-xs">
+          <label className="text-sm text-secondary">Filters</label>
+          <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Filter subject" aria-label="Filter subject" />
+          <input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="Filter topic" aria-label="Filter topic" />
+          <input value={subtopic} onChange={(e) => setSubtopic(e.target.value)} placeholder="Filter subtopic" aria-label="Filter subtopic" />
+          <input value={difficulty} onChange={(e) => setDifficulty(e.target.value)} placeholder="Filter difficulty" aria-label="Filter difficulty" />
+          <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Filter tag" aria-label="Filter tag" />
+          <input value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="Filter author" aria-label="Filter author" />
+          <button className="btn-ghost btn-sm" onClick={clearFilters}>Clear Filters</button>
         </div>
+
+        {/* Sort */}
         <div>
           <select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
             <option value="">No Sort</option>
@@ -206,52 +242,79 @@ export function QuestionList({ onSelect }: { onSelect: (q: Question | null) => v
             <option value="updated_at">Sort by Updated</option>
           </select>
         </div>
-        <div>
-          <strong>Tags</strong>
-          <div>
+
+        {/* Tags */}
+        <div className="glass-card flex flex-col gap-xs">
+          <label className="text-sm text-secondary">Tags</label>
+          <div className="flex flex-col gap-xs">
             <input value={tagFrom} onChange={(e) => setTagFrom(e.target.value)} placeholder="Tag to rename" />
             <input value={tagTo} onChange={(e) => setTagTo(e.target.value)} placeholder="New tag" />
-            <button onClick={renameTag}>Rename/Merge</button>
+            <button className="btn-ghost btn-sm" onClick={renameTag} disabled={renaming}>{renaming ? 'Renaming...' : 'Rename/Merge'}</button>
           </div>
-          <ul>
+          <div className="flex flex-wrap gap-xs">
             {Object.entries(tagCounts).map(([t, count]) => (
-              <li key={t}>{t} ({count})</li>
+              <span key={t} className="badge">{t} ({count})</span>
             ))}
-          </ul>
+          </div>
         </div>
-        <div>
-          <strong>Import/Export</strong>
-          <div>
-            <select value={ioFormat} onChange={(e) => setIoFormat(e.target.value as any)}>
+
+        {/* Import/Export */}
+        <div className="glass-card flex flex-col gap-sm">
+          <label className="text-sm text-secondary">Import / Export</label>
+          <div className="flex gap-xs">
+            <select value={ioFormat} onChange={(e) => setIoFormat(e.target.value as 'json' | 'yaml')}>
               <option value="json">JSON</option>
               <option value="yaml">YAML</option>
             </select>
-            <select value={importMode} onChange={(e) => setImportMode(e.target.value as any)}>
+            <select value={importMode} onChange={(e) => setImportMode(e.target.value as 'append' | 'replace')}>
               <option value="append">Append</option>
               <option value="replace">Replace</option>
             </select>
           </div>
-          <div>
+          <div className="flex gap-xs items-center">
             <input value={importPath} onChange={(e) => setImportPath(e.target.value)} placeholder="Import path" />
-            <button onClick={importQuestions}>Import</button>
+            <button className="btn-ghost btn-sm" onClick={async () => {
+              try {
+                const result = await api.showOpenDialog({
+                  title: 'Import Questions',
+                  filters: [{ name: 'Questions', extensions: ['json', 'yaml', 'yml'] }],
+                });
+                if (!result.canceled && result.filePaths?.length) setImportPath(result.filePaths[0]);
+              } catch { /* ignored */ }
+            }}>Browse</button>
+            <button className="btn-sm" onClick={importQuestions} disabled={importing}>{importing ? 'Importing...' : 'Import'}</button>
           </div>
-          <div>
+          <div className="flex gap-xs items-center">
             <input value={exportPath} onChange={(e) => setExportPath(e.target.value)} placeholder="Export path" />
-            <button onClick={exportQuestions}>Export</button>
+            <button className="btn-ghost btn-sm" onClick={async () => {
+              try {
+                const ext = ioFormat === 'json' ? 'json' : 'yaml';
+                const result = await api.showSaveDialog({
+                  title: 'Export Questions',
+                  filters: [{ name: ioFormat.toUpperCase(), extensions: [ext] }],
+                });
+                if (!result.canceled && result.filePath) setExportPath(result.filePath);
+              } catch { /* ignored */ }
+            }}>Browse</button>
+            <button className="btn-sm" onClick={exportQuestions} disabled={exporting}>{exporting ? 'Exporting...' : 'Export'}</button>
           </div>
         </div>
-        <button onClick={() => onSelect(null)}>New Question</button>
-        <ul>
-          {filteredQuestions.map((q) => (
-            <QuestionRow
-              key={q.id}
-              question={q}
-              onSelect={(item) => onSelect(item)}
-              onClone={cloneQuestion}
-              onDelete={deleteQuestion}
-            />
-          ))}
-        </ul>
+
+        {/* New Question */}
+        <button className="btn-primary" onClick={() => onSelect(null)}>New Question</button>
+      </div>
+
+      {/* Question list */}
+      <div className="flex-1 flex flex-col gap-sm overflow-auto">
+        {filteredQuestions.map((q) => (
+          <QuestionRow
+            key={q.id}
+            question={q}
+            onSelect={(item) => onSelect(item)}
+            onClone={cloneQuestion}
+            onDelete={deleteQuestion}
+          />
+        ))}
       </div>
     </div>
   );

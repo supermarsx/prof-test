@@ -1,408 +1,313 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { QuestionList } from '../components/QuestionList';
-import { QuestionEditor } from '../components/QuestionEditor';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Dashboard } from '../components/screens/Dashboard';
+import { QuestionBankScreen } from '../components/screens/QuestionBankScreen';
+import { TestBuilderScreen } from '../components/screens/TestBuilderScreen';
+import { AIAssistantScreen } from '../components/screens/AIAssistantScreen';
+import { ExportsScreen } from '../components/screens/ExportsScreen';
+import { SettingsScreen } from '../components/screens/SettingsScreen';
+import { ErrorBoundary } from '../components/ErrorBoundary';
+import { initI18n } from '../i18n/setup';
+import { setLocale, t, Locale } from '../i18n';
+import { api, initAPI } from '../lib/api';
+
+type Screen = 'dashboard' | 'questions' | 'builder' | 'ai' | 'exports' | 'settings';
 
 export default function HomePage() {
-  const [selected, setSelected] = useState<any | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [screen, setScreen] = useState<Screen>('dashboard');
+  const [theme, setTheme] = useState<'dark' | 'light' | 'high-contrast'>('dark');
+  const [fontScale, setFontScale] = useState<'sm' | 'md' | 'lg' | 'xl'>('md');
+  const [locale, setLocaleState] = useState<Locale>('en');
   const [projects, setProjects] = useState<string[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
-  const [newProject, setNewProject] = useState('');
   const [status, setStatus] = useState<string | null>(null);
-  const [metadataPath, setMetadataPath] = useState('');
-  const [answerKeyPath, setAnswerKeyPath] = useState('');
-  const [matrixPath, setMatrixPath] = useState('');
-  const [exportTestId, setExportTestId] = useState('test-1');
-  const [versionsJson, setVersionsJson] = useState('[]');
-  const [profiles, setProfiles] = useState<any[]>([]);
-  const [profileName, setProfileName] = useState('');
-  const [profileFormat, setProfileFormat] = useState<'csv' | 'xlsx'>('csv');
-  const [profileIncludes, setProfileIncludes] = useState('answer_keys');
-  const [projectExportPath, setProjectExportPath] = useState('');
-  const [projectImportPath, setProjectImportPath] = useState('');
-  const [projectImportName, setProjectImportName] = useState('');
-  const [headerPresets, setHeaderPresets] = useState<any[]>([]);
-  const [layoutPresets, setLayoutPresets] = useState<any[]>([]);
-  const [headerName, setHeaderName] = useState('');
-  const [headerScope, setHeaderScope] = useState<'global' | 'project'>('project');
-  const [headerLatex, setHeaderLatex] = useState('');
-  const [layoutName, setLayoutName] = useState('');
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const refreshProjects = async () => {
-    const listRes = await window.profTestAPI.listProjects();
-    if (listRes && listRes.projects) {
-      setProjects(listRes.projects);
+  // Compute NAV_ITEMS inside the component so t() uses the current locale
+  const NAV_ITEMS: { id: Screen; label: string; icon: string; shortcut: string }[] = useMemo(() => [
+    { id: 'dashboard', label: t('nav.dashboard'), icon: '\u2302', shortcut: 'Ctrl+1' },
+    { id: 'questions', label: t('nav.questionBank'), icon: '\u2630', shortcut: 'Ctrl+2' },
+    { id: 'builder', label: t('nav.testBuilder'), icon: '\u2692', shortcut: 'Ctrl+3' },
+    { id: 'ai', label: t('nav.aiAssistant'), icon: '\u2728', shortcut: 'Ctrl+4' },
+    { id: 'exports', label: t('nav.exports'), icon: '\u21E9', shortcut: 'Ctrl+5' },
+    { id: 'settings', label: t('nav.settings'), icon: '\u2699', shortcut: 'Ctrl+,' },
+  ], [locale]);
+
+  const refreshProjects = useCallback(async () => {
+    try {
+      const listRes = await api.listProjects();
+      if (listRes?.projects) setProjects(listRes.projects);
+      const activeRes = await api.getActiveProject();
+      setActiveProject(activeRes?.active || null);
+    } catch {}
+  }, []);
+
+  // Initialize Tauri API layer on mount
+  useEffect(() => { initAPI(); }, []);
+
+  // Initialize i18n and load stored language on mount
+  useEffect(() => {
+    initI18n();
+    (async () => {
+      try {
+        const res = await api.getSettings();
+        const s = res?.settings || res;
+        if (s?.language) {
+          const lang = s.language as Locale;
+          setLocale(lang);
+          setLocaleState(lang);
+          document.documentElement.lang = lang;
+          // Set RTL direction for Arabic
+          document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+        }
+      } catch {}
+    })();
+  }, []);
+
+  // Detect OS color scheme preference, restore saved theme
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('proftest_theme_override');
+    if (savedTheme && (savedTheme === 'dark' || savedTheme === 'light' || savedTheme === 'high-contrast')) {
+      setTheme(savedTheme);
+      return;
     }
-    const activeRes = await window.profTestAPI.getActiveProject();
-    if (activeRes && activeRes.active) {
-      setActiveProject(activeRes.active);
-    } else {
-      setActiveProject(null);
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+      setTheme('light');
     }
-  };
-
-  const refreshProfiles = async () => {
-    const res = await window.profTestAPI.listExportProfiles();
-    if (res && res.profiles) setProfiles(res.profiles);
-  };
-
-  const refreshPresets = async () => {
-    const headerRes = await window.profTestAPI.listHeaderPresets();
-    const layoutRes = await window.profTestAPI.listLayoutPresets();
-    if (headerRes && headerRes.presets) setHeaderPresets(headerRes.presets);
-    if (layoutRes && layoutRes.presets) setLayoutPresets(layoutRes.presets);
-  };
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('proftest_theme_override')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
+  }, []);
 
   useEffect(() => {
     refreshProjects();
-    refreshProfiles();
-    refreshPresets();
-  }, []);
-
-  const createProject = async () => {
-    setStatus(null);
-    if (!newProject.trim()) {
-      setStatus('Project name is required');
-      return;
-    }
-    const res = await window.profTestAPI.createProject(newProject.trim());
-    if (!res.ok) {
-      setStatus(res.error || 'Failed to create project');
-      return;
-    }
-    setNewProject('');
-    await refreshProjects();
-  };
-
-  const exportProject = async () => {
-    setStatus(null);
-    if (!activeProject) {
-      setStatus('Select a project to export');
-      return;
-    }
-    if (!projectExportPath.trim()) {
-      setStatus('Export path is required');
-      return;
-    }
-    const res = await window.profTestAPI.exportProject(activeProject, projectExportPath.trim());
-    if (!res.ok) setStatus(res.error || 'Failed to export project');
-  };
-
-  const importProject = async () => {
-    setStatus(null);
-    if (!projectImportPath.trim() || !projectImportName.trim()) {
-      setStatus('Import path and project name are required');
-      return;
-    }
-    const res = await window.profTestAPI.importProject(projectImportPath.trim(), projectImportName.trim());
-    if (!res.ok) {
-      setStatus(res.error || 'Failed to import project');
-      return;
-    }
-    setProjectImportPath('');
-    setProjectImportName('');
-    await refreshProjects();
-  };
+    // Apply theme and font scale classes
+    document.body.className = `theme-${theme} font-scale-${fontScale}`;
+  }, [theme, fontScale, refreshProjects]);
 
   const activateProject = async (name: string) => {
+    if (!name) return;
     setStatus(null);
-    const res = await window.profTestAPI.activateProject(name);
-    if (!res.ok) {
-      setStatus(res.error || 'Failed to activate project');
-      return;
-    }
-    setActiveProject(name);
-    setRefreshKey((k) => k + 1);
-  };
-
-  const exportMetadata = async () => {
-    setStatus(null);
-    if (!metadataPath.trim()) {
-      setStatus('Metadata export path is required');
-      return;
-    }
-    const res = await window.profTestAPI.exportQuestionMetadataCsv(metadataPath.trim());
-    if (!res.ok) setStatus(res.error || 'Failed to export metadata CSV');
-  };
-
-  const exportAnswerKey = async () => {
-    setStatus(null);
-    if (!answerKeyPath.trim()) {
-      setStatus('Answer key export path is required');
-      return;
-    }
-    let parsed: any[] = [];
     try {
-      parsed = JSON.parse(versionsJson || '[]');
+      const res = await api.activateProject(name);
+      if (res?.ok) {
+        setActiveProject(name);
+        setRefreshKey(k => k + 1);
+      } else {
+        setStatus(res?.error || 'Failed to activate project');
+      }
     } catch (e) {
-      setStatus('Versions JSON is invalid');
-      return;
+      setStatus(String(e));
     }
-    const res = await window.profTestAPI.exportAnswerKeyCsv(exportTestId, parsed, answerKeyPath.trim());
-    if (!res.ok) setStatus(res.error || 'Failed to export answer key CSV');
   };
 
-  const exportMatrix = async () => {
+  const createProject = async (name: string) => {
     setStatus(null);
-    if (!matrixPath.trim()) {
-      setStatus('Grading matrix export path is required');
-      return;
-    }
-    let parsed: any[] = [];
     try {
-      parsed = JSON.parse(versionsJson || '[]');
+      const res = await api.createProject(name);
+      if (res?.ok) {
+        await refreshProjects();
+        await activateProject(name);
+      } else {
+        setStatus(res?.error || 'Failed to create project');
+      }
     } catch (e) {
-      setStatus('Versions JSON is invalid');
-      return;
+      setStatus(String(e));
     }
-    const res = await window.profTestAPI.exportGradingMatrixXlsx(exportTestId, parsed, matrixPath.trim());
-    if (!res.ok) setStatus(res.error || 'Failed to export grading matrix');
   };
 
-  const saveProfile = async () => {
-    setStatus(null);
-    if (!profileName.trim()) {
-      setStatus('Profile name is required');
-      return;
-    }
-    const profile = {
-      id: `profile-${profileName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-      name: profileName.trim(),
-      format: profileFormat,
-      includes: profileIncludes.split(',').map((v) => v.trim()).filter((v) => v.length > 0),
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => {
+      const next = prev === 'dark' ? 'light' : prev === 'light' ? 'high-contrast' : 'dark';
+      localStorage.setItem('proftest_theme_override', next);
+      return next;
+    });
+  }, []);
+
+  const refresh = () => setRefreshKey(k => k + 1);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger shortcuts when typing in inputs/textareas
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+
+      const ctrl = e.ctrlKey || e.metaKey;
+
+      // Ctrl+1..6: Navigate to screens
+      if (ctrl && e.key >= '1' && e.key <= '6') {
+        e.preventDefault();
+        const idx = parseInt(e.key) - 1;
+        if (NAV_ITEMS[idx]) setScreen(NAV_ITEMS[idx].id);
+        return;
+      }
+
+      // Ctrl+D: Dashboard
+      if (ctrl && e.key === 'd') {
+        e.preventDefault();
+        setScreen('dashboard');
+        return;
+      }
+
+      // Ctrl+Q: Question Bank
+      if (ctrl && e.key === 'q') {
+        e.preventDefault();
+        setScreen('questions');
+        return;
+      }
+
+      // Ctrl+B: Test Builder
+      if (ctrl && e.key === 'b') {
+        e.preventDefault();
+        setScreen('builder');
+        return;
+      }
+
+      // Ctrl+T: Toggle theme
+      if (ctrl && e.key === 't') {
+        e.preventDefault();
+        toggleTheme();
+        return;
+      }
+
+      // Ctrl+R or F5: Refresh
+      if ((ctrl && e.key === 'r') || e.key === 'F5') {
+        e.preventDefault();
+        refresh();
+        refreshProjects();
+        return;
+      }
+
+      // Ctrl+,: Settings
+      if (ctrl && e.key === ',') {
+        e.preventDefault();
+        setScreen('settings');
+        return;
+      }
     };
-    const res = await window.profTestAPI.upsertExportProfile(profile);
-    if (!res.ok) {
-      setStatus(res.error || 'Failed to save profile');
-      return;
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleTheme, refreshProjects]);
+
+  const renderScreen = () => {
+    switch (screen) {
+      case 'dashboard':
+        return <Dashboard
+          activeProject={activeProject}
+          onNavigate={setScreen}
+          onCreateProject={createProject}
+          onActivateProject={activateProject}
+          projects={projects}
+          refreshKey={refreshKey}
+        />;
+      case 'questions':
+        return <QuestionBankScreen
+          refreshKey={refreshKey}
+          onRefresh={refresh}
+        />;
+      case 'builder':
+        return <TestBuilderScreen
+          refreshKey={refreshKey}
+          onRefresh={refresh}
+        />;
+      case 'ai':
+        return <AIAssistantScreen
+          refreshKey={refreshKey}
+          onRefresh={refresh}
+        />;
+      case 'exports':
+        return <ExportsScreen refreshKey={refreshKey} />;
+      case 'settings':
+        return <SettingsScreen
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          fontScale={fontScale}
+          onFontScaleChange={setFontScale}
+        />;
+      default:
+        return null;
     }
-    setProfileName('');
-    await refreshProfiles();
-  };
-
-  const deleteProfile = async (id: string) => {
-    const res = await window.profTestAPI.removeExportProfile(id);
-    if (!res.ok) setStatus(res.error || 'Failed to delete profile');
-    await refreshProfiles();
-  };
-
-  const saveHeaderPreset = async () => {
-    setStatus(null);
-    if (!headerName.trim()) {
-      setStatus('Header preset name is required');
-      return;
-    }
-    const preset = {
-      id: `header-${headerName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-      name: headerName.trim(),
-      scope: headerScope,
-      latex_snippet: headerLatex.trim() || undefined,
-    };
-    const res = await window.profTestAPI.upsertHeaderPreset(preset);
-    if (!res.ok) setStatus(res.error || 'Failed to save header preset');
-    setHeaderName('');
-    setHeaderLatex('');
-    await refreshPresets();
-  };
-
-  const deleteHeaderPreset = async (id: string) => {
-    const res = await window.profTestAPI.removeHeaderPreset(id);
-    if (!res.ok) setStatus(res.error || 'Failed to delete header preset');
-    await refreshPresets();
-  };
-
-  const saveLayoutPreset = async () => {
-    setStatus(null);
-    if (!layoutName.trim()) {
-      setStatus('Layout preset name is required');
-      return;
-    }
-    const preset = {
-      id: `layout-${layoutName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-      name: layoutName.trim(),
-    };
-    const res = await window.profTestAPI.upsertLayoutPreset(preset);
-    if (!res.ok) setStatus(res.error || 'Failed to save layout preset');
-    setLayoutName('');
-    await refreshPresets();
-  };
-
-  const clearCache = async () => {
-    const res = await window.profTestAPI.clearAiCache();
-    if (!res.ok) setStatus(res.error || 'Failed to clear AI cache');
-  };
-
-  const deleteLayoutPreset = async (id: string) => {
-    const res = await window.profTestAPI.removeLayoutPreset(id);
-    if (!res.ok) setStatus(res.error || 'Failed to delete layout preset');
-    await refreshPresets();
   };
 
   return (
-    <main style={{ display: 'flex', flexDirection: 'column', padding: 20, gap: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <strong>Project</strong>
-        <select
-          value={activeProject || ''}
-          onChange={(e) => activateProject(e.target.value)}
-        >
-          <option value="">Select project</option>
-          {projects.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-        <input
-          value={newProject}
-          onChange={(e) => setNewProject(e.target.value)}
-          placeholder="New project name"
-        />
-        <button onClick={createProject}>Create</button>
-        <input
-          value={projectExportPath}
-          onChange={(e) => setProjectExportPath(e.target.value)}
-          placeholder="Export .examproj path"
-        />
-        <button onClick={exportProject}>Export</button>
-        <input
-          value={projectImportPath}
-          onChange={(e) => setProjectImportPath(e.target.value)}
-          placeholder="Import .examproj path"
-        />
-        <input
-          value={projectImportName}
-          onChange={(e) => setProjectImportName(e.target.value)}
-          placeholder="Imported project name"
-        />
-        <button onClick={importProject}>Import</button>
-        <button onClick={refreshProjects}>Refresh</button>
-        {status && <span style={{ color: 'red' }}>{status}</span>}
-      </header>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <QuestionList onSelect={(q) => setSelected(q)} key={refreshKey} />
-        <QuestionEditor question={selected} onSaved={() => setRefreshKey((k) => k + 1)} />
+    <div className="app-shell">
+      {/* Sidebar */}
+      <nav className="sidebar">
+        <div style={{ marginBottom: 'var(--space-lg)' }}>
+          <h3 style={{ fontSize: 'var(--font-size-md)', fontWeight: 700, color: 'var(--text-accent)' }}>
+            ProfTest
+          </h3>
+          <span className="text-xs text-tertiary">LaTeX Test Generator</span>
+        </div>
+
+        {NAV_ITEMS.map(item => (
+          <button
+            key={item.id}
+            className={`sidebar-item ${screen === item.id ? 'active' : ''}`}
+            onClick={() => setScreen(item.id)}
+            title={item.shortcut}
+            aria-label={item.label}
+            aria-current={screen === item.id ? 'page' : undefined}
+          >
+            <span style={{ fontSize: '16px', width: '20px', textAlign: 'center' }}>{item.icon}</span>
+            {item.label}
+            <span className="text-xs text-tertiary" style={{ marginLeft: 'auto', fontSize: '10px' }}>
+              {item.shortcut}
+            </span>
+          </button>
+        ))}
+
+        <div style={{ marginTop: 'auto', paddingTop: 'var(--space-md)' }}>
+          <hr className="divider" />
+          <div className="text-xs text-tertiary" style={{ padding: 'var(--space-sm)' }}>
+            {activeProject ? (
+              <span>Project: <strong style={{ color: 'var(--text-primary)' }}>{activeProject}</strong></span>
+            ) : (
+              <span>No project selected</span>
+            )}
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        {/* Top Bar */}
+        <div className="top-bar">
+          <div className="flex items-center gap-sm">
+            <select
+              value={activeProject || ''}
+              onChange={e => activateProject(e.target.value)}
+              style={{ width: 'auto', minWidth: '160px' }}
+            >
+              <option value="">Select project...</option>
+              {projects.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+            {status && <span className="text-sm text-danger">{status}</span>}
+          </div>
+          <div className="flex items-center gap-sm">
+            <button className="btn-ghost btn-sm" onClick={toggleTheme} title="Toggle theme">
+              {theme === 'dark' ? '\u2600' : theme === 'light' ? '\u25D1' : '\u263D'}
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <main className="main-content">
+          <ErrorBoundary key={screen}>
+            {renderScreen()}
+          </ErrorBoundary>
+        </main>
       </div>
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h3>Exports</h3>
-        <div>
-          <label>Question Metadata CSV Path</label>
-          <input
-            value={metadataPath}
-            onChange={(e) => setMetadataPath(e.target.value)}
-            placeholder="C:\\path\\question-metadata.csv"
-          />
-          <button onClick={exportMetadata}>Export Metadata CSV</button>
-        </div>
-        <div>
-          <label>Test ID</label>
-          <input value={exportTestId} onChange={(e) => setExportTestId(e.target.value)} />
-        </div>
-        <div>
-          <label>Versions JSON</label>
-          <textarea
-            value={versionsJson}
-            onChange={(e) => setVersionsJson(e.target.value)}
-            placeholder="[]"
-            rows={4}
-          />
-        </div>
-        <div>
-          <label>Answer Key CSV Path</label>
-          <input
-            value={answerKeyPath}
-            onChange={(e) => setAnswerKeyPath(e.target.value)}
-            placeholder="C:\\path\\answer-key.csv"
-          />
-          <button onClick={exportAnswerKey}>Export Answer Key CSV</button>
-        </div>
-        <div>
-          <label>Grading Matrix XLSX Path</label>
-          <input
-            value={matrixPath}
-            onChange={(e) => setMatrixPath(e.target.value)}
-            placeholder="C:\\path\\grading-matrix.xlsx"
-          />
-          <button onClick={exportMatrix}>Export Grading Matrix</button>
-        </div>
-        <div>
-          <h4>Export Profiles</h4>
-          <input
-            value={profileName}
-            onChange={(e) => setProfileName(e.target.value)}
-            placeholder="Profile name"
-          />
-          <select value={profileFormat} onChange={(e) => setProfileFormat(e.target.value as any)}>
-            <option value="csv">CSV</option>
-            <option value="xlsx">XLSX</option>
-          </select>
-          <input
-            value={profileIncludes}
-            onChange={(e) => setProfileIncludes(e.target.value)}
-            placeholder="includes (comma-separated)"
-          />
-          <button onClick={saveProfile}>Save Profile</button>
-          <ul>
-            {profiles.map((p) => (
-              <li key={p.id}>
-                {p.name} ({p.format})
-                <button onClick={() => deleteProfile(p.id)}>Remove</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h3>Presets</h3>
-        <div>
-          <h4>Header Presets</h4>
-          <input
-            value={headerName}
-            onChange={(e) => setHeaderName(e.target.value)}
-            placeholder="Header preset name"
-          />
-          <select value={headerScope} onChange={(e) => setHeaderScope(e.target.value as any)}>
-            <option value="project">Project</option>
-            <option value="global">Global</option>
-          </select>
-          <textarea
-            value={headerLatex}
-            onChange={(e) => setHeaderLatex(e.target.value)}
-            placeholder="LaTeX snippet (optional)"
-            rows={3}
-          />
-          <button onClick={saveHeaderPreset}>Save Header Preset</button>
-          <ul>
-            {headerPresets.map((p) => (
-              <li key={p.id}>
-                {p.name} ({p.scope})
-                <button onClick={() => deleteHeaderPreset(p.id)}>Remove</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-        <div>
-          <h4>Layout Presets</h4>
-          <input
-            value={layoutName}
-            onChange={(e) => setLayoutName(e.target.value)}
-            placeholder="Layout preset name"
-          />
-          <button onClick={saveLayoutPreset}>Save Layout Preset</button>
-          <ul>
-            {layoutPresets.map((p) => (
-              <li key={p.id}>
-                {p.name}
-                <button onClick={() => deleteLayoutPreset(p.id)}>Remove</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
-      <section style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <h3>Maintenance</h3>
-        <button onClick={clearCache}>Clear AI Cache</button>
-      </section>
-    </main>
+    </div>
   );
 }
