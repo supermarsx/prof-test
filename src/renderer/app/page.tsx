@@ -11,8 +11,16 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { initI18n } from '../i18n/setup';
 import { setLocale, t, Locale } from '../i18n';
 import { api, initAPI } from '../lib/api';
+import type { Settings } from '../../models';
 
 type Screen = 'dashboard' | 'questions' | 'builder' | 'ai' | 'exports' | 'settings';
+
+function extractSettingsResponse(
+  response: Awaited<ReturnType<typeof api.getSettings>> | undefined,
+): Settings | undefined {
+  if (!response) return undefined;
+  return 'settings' in response ? response.settings : undefined;
+}
 
 export default function HomePage() {
   const [screen, setScreen] = useState<Screen>('dashboard');
@@ -52,7 +60,7 @@ export default function HomePage() {
     (async () => {
       try {
         const res = await api.getSettings();
-        const s = res?.settings || res;
+        const s = extractSettingsResponse(res);
         if (s?.language) {
           const lang = s.language as Locale;
           setLocale(lang);
