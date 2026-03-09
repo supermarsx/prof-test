@@ -18,6 +18,55 @@ export interface CompilerOptions {
   timeout?: number; // ms before killing the process
 }
 
+/**
+ * Resolve candidate paths for a bundled TinyTeX installation.
+ * Tauri places bundled resources next to the executable in the `_up_/resources` directory
+ * or in the app data directory. We check several conventional locations.
+ */
+function getBundledTinyTexPaths(): string[] {
+  const candidates: string[] = [];
+  const platform = process.platform;
+
+  // 1. Adjacent to the executable (Tauri resource directory)
+  try {
+    const exeDir = path.dirname(process.execPath);
+    const resourceDirs = [
+      path.join(exeDir, 'resources', 'tinytex'),
+      path.join(exeDir, '..', 'resources', 'tinytex'),
+      path.join(exeDir, 'tinytex'),
+    ];
+    for (const rd of resourceDirs) {
+      if (platform === 'win32') {
+        candidates.push(path.join(rd, 'bin', 'windows'));
+        candidates.push(path.join(rd, 'bin', 'win32'));
+      } else if (platform === 'darwin') {
+        candidates.push(path.join(rd, 'bin', 'universal-darwin'));
+        candidates.push(path.join(rd, 'bin', 'x86_64-darwin'));
+        candidates.push(path.join(rd, 'bin', 'aarch64-darwin'));
+      } else {
+        candidates.push(path.join(rd, 'bin', 'x86_64-linux'));
+        candidates.push(path.join(rd, 'bin', 'aarch64-linux'));
+      }
+    }
+  } catch {}
+
+  // 2. User-local TinyTeX installed by the tinytex R package or standalone installer
+  const home = os.homedir();
+  if (platform === 'win32') {
+    candidates.push(path.join(home, 'AppData', 'Roaming', 'TinyTeX', 'bin', 'windows'));
+    candidates.push(path.join(home, 'AppData', 'Roaming', 'TinyTeX', 'bin', 'win32'));
+  } else if (platform === 'darwin') {
+    candidates.push(path.join(home, 'Library', 'TinyTeX', 'bin', 'universal-darwin'));
+    candidates.push(path.join(home, 'Library', 'TinyTeX', 'bin', 'x86_64-darwin'));
+    candidates.push(path.join(home, '.TinyTeX', 'bin', 'x86_64-darwin'));
+  } else {
+    candidates.push(path.join(home, '.TinyTeX', 'bin', 'x86_64-linux'));
+    candidates.push(path.join(home, '.TinyTeX', 'bin', 'aarch64-linux'));
+  }
+
+  return candidates;
+}
+
 function findLatexEngine(engine: string, customPath?: string): string {
   if (customPath) {
     const fullPath = path.join(customPath, engine + (process.platform === 'win32' ? '.exe' : ''));
@@ -29,8 +78,25 @@ function findLatexEngine(engine: string, customPath?: string): string {
   return engine;
 }
 
-export function detectLatexInstallation(): { found: boolean; path?: string; engines: string[] } {
+export function detectLatexInstallation(): { found: boolean; path?: string; engines: string[]; bundled?: boolean } {
   const engines: string[] = [];
+
+  // Check bundled TinyTeX paths first
+  const bundledPaths = getBundledTinyTexPaths();
+  for (const p of bundledPaths) {
+    for (const eng of ['pdflatex', 'xelatex']) {
+      const ext = process.platform === 'win32' ? '.exe' : '';
+      const full = path.join(p, eng + ext);
+      if (fs.existsSync(full)) {
+        engines.push(eng);
+      }
+    }
+    if (engines.length > 0) {
+      return { found: true, path: p, engines, bundled: true };
+    }
+  }
+
+  // Check standard system paths
   const commonPaths = process.platform === 'win32'
     ? [
         'C:\\texlive\\2024\\bin\\windows',
@@ -70,6 +136,15 @@ export async function compileLatex(
   const runs = options.runs || 1;
   const timeout = options.timeout || 60000;
 
+  // Auto-detect bundled/installed LaTeX if no custom path specified
+  let latexPath = options.latexPath;
+  if (!latexPath) {
+    const detected = detectLatexInstallation();
+    if (detected.found && detected.path) {
+      latexPath = detected.path;
+    }
+  }
+
   // Create a temp directory for compilation
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'proftest-latex-'));
   const texFile = path.join(tmpDir, filename.endsWith('.tex') ? filename : filename + '.tex');
@@ -77,7 +152,7 @@ export async function compileLatex(
   try {
     fs.writeFileSync(texFile, latexSource, 'utf8');
     
-    const binaryPath = findLatexEngine(engine, options.latexPath);
+    const binaryPath = findLatexEngine(engine, latexPath);
     let fullLog = '';
     const errors: string[] = [];
 

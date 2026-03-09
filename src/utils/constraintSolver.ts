@@ -10,6 +10,17 @@ export interface AssemblyConstraints {
   requireTags?: string[];
   excludeQuestionIds?: string[];
   seed?: number;
+  /** Per-section constraints for multi-section assembly */
+  sections?: SectionConstraint[];
+}
+
+export interface SectionConstraint {
+  sectionId: string;
+  sectionName?: string;
+  questionCount: number;
+  allowedTypes?: QuestionType[];
+  topicDistribution?: Record<string, number>;
+  difficultyDistribution?: Record<string, number>;
 }
 
 interface DifficultyRange {
@@ -63,6 +74,8 @@ export interface SolverResult {
   questions: Question[];
   warnings: string[];
   unmetConstraints: string[];
+  /** Per-section results when section constraints are used */
+  sectionResults?: Array<{ sectionId: string; questions: Question[]; warnings: string[] }>;
 }
 
 export function solveConstraints(
@@ -90,6 +103,97 @@ export function solveConstraints(
   // Shuffle the pool for randomness
   pool = seededShuffle(pool, seed);
 
+  // ── Per-section constraint solving ─────────────────────────
+  if (constraints.sections && constraints.sections.length > 0) {
+    const sectionResults: Array<{ sectionId: string; questions: Question[]; warnings: string[] }> = [];
+
+    for (const secConstraint of constraints.sections) {
+      const secWarnings: string[] = [];
+      const secSelected: Question[] = [];
+
+      // Filter pool for this section's allowed types
+      let secPool = pool.filter(q => {
+        if (usedIds.has(q.id)) return false;
+        if (secConstraint.allowedTypes && secConstraint.allowedTypes.length > 0) {
+          if (!secConstraint.allowedTypes.includes(q.type)) return false;
+        }
+        return true;
+      });
+
+      const secTotal = secConstraint.questionCount;
+
+      // Topic distribution within section
+      if (secConstraint.topicDistribution && Object.keys(secConstraint.topicDistribution).length > 0) {
+        const topicCounts = distributionToCounts(secConstraint.topicDistribution, secTotal);
+        for (const [topic, count] of Object.entries(topicCounts)) {
+          const topicPool = secPool.filter(q =>
+            (q.topic || '').toLowerCase() === topic.toLowerCase() && !usedIds.has(q.id)
+          );
+          const toSelect = Math.min(count, topicPool.length);
+          for (let i = 0; i < toSelect; i++) {
+            secSelected.push(topicPool[i]);
+            usedIds.add(topicPool[i].id);
+          }
+          if (toSelect < count) {
+            secWarnings.push(`Section "${secConstraint.sectionName || secConstraint.sectionId}": only ${toSelect} of ${count} for topic "${topic}"`);
+          }
+        }
+      }
+
+      // Difficulty distribution within section
+      if (secConstraint.difficultyDistribution && Object.keys(secConstraint.difficultyDistribution).length > 0) {
+        const diffCounts = distributionToCounts(secConstraint.difficultyDistribution, secTotal);
+        for (const [diffLabel, count] of Object.entries(diffCounts)) {
+          const currentCount = secSelected.filter(q => matchesDifficulty(q, diffLabel)).length;
+          const needed = Math.max(0, count - currentCount);
+          if (needed > 0) {
+            const diffPool = secPool.filter(q => matchesDifficulty(q, diffLabel) && !usedIds.has(q.id));
+            const toSelect = Math.min(needed, diffPool.length);
+            for (let i = 0; i < toSelect; i++) {
+              secSelected.push(diffPool[i]);
+              usedIds.add(diffPool[i].id);
+            }
+            if (toSelect < needed) {
+              secWarnings.push(`Section "${secConstraint.sectionName || secConstraint.sectionId}": only ${currentCount + toSelect} of ${count} at difficulty "${diffLabel}"`);
+            }
+          }
+        }
+      }
+
+      // Fill remaining section slots
+      const remaining = secTotal - secSelected.length;
+      if (remaining > 0) {
+        const fillPool = secPool.filter(q => !usedIds.has(q.id));
+        const toFill = Math.min(remaining, fillPool.length);
+        for (let i = 0; i < toFill; i++) {
+          secSelected.push(fillPool[i]);
+          usedIds.add(fillPool[i].id);
+        }
+        if (toFill < remaining) {
+          secWarnings.push(`Section "${secConstraint.sectionName || secConstraint.sectionId}": could only select ${secSelected.length} of ${secTotal} questions`);
+        }
+      }
+
+      const shuffled = seededShuffle(secSelected, seed + sectionResults.length);
+      sectionResults.push({ sectionId: secConstraint.sectionId, questions: shuffled, warnings: secWarnings });
+      selected.push(...shuffled);
+      warnings.push(...secWarnings);
+    }
+
+    if (warnings.length > 0) {
+      unmetConstraints.push('section_constraints');
+    }
+
+    return {
+      success: unmetConstraints.length === 0,
+      questions: selected,
+      warnings,
+      unmetConstraints,
+      sectionResults,
+    };
+  }
+
+  // ── Global constraint solving (original logic) ─────────────
   const total = constraints.totalQuestions;
 
   // Strategy: satisfy specific constraints first, then fill remaining

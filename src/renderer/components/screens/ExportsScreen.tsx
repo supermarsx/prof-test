@@ -80,6 +80,44 @@ export function ExportsScreen({ refreshKey }: Props) {
     } catch {}
   }, []);
 
+  const STORAGE_KEY = 'proftest_export_settings';
+
+  // Restore last export settings from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const data = JSON.parse(saved);
+        if (data.tab) setTab(data.tab);
+        if (data.selectedTemplateId) setSelectedTemplateId(data.selectedTemplateId);
+        if (data.importMode) setImportMode(data.importMode);
+        if (data.answerKeyPath) setAnswerKeyPath(data.answerKeyPath);
+        if (data.gradingPath) setGradingPath(data.gradingPath);
+        if (data.metadataPath) setMetadataPath(data.metadataPath);
+        if (data.jsonPath) setJsonPath(data.jsonPath);
+        if (data.yamlPath) setYamlPath(data.yamlPath);
+        if (data.newProfileFormat) setNewProfileFormat(data.newProfileFormat);
+      }
+    } catch {}
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist export settings to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        tab,
+        selectedTemplateId,
+        importMode,
+        answerKeyPath,
+        gradingPath,
+        metadataPath,
+        jsonPath,
+        yamlPath,
+        newProfileFormat,
+      }));
+    } catch {}
+  }, [tab, selectedTemplateId, importMode, answerKeyPath, gradingPath, metadataPath, jsonPath, yamlPath, newProfileFormat]);
+
   useEffect(() => {
     loadData();
   }, [refreshKey, loadData]);

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { t } from '../../i18n';
 import { api } from '../../lib/api';
+import { PdfPreviewPanel } from '../PdfPreviewPanel';
 
 interface Props {
   refreshKey: number;
@@ -38,11 +39,13 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
   const [versionCount, setVersionCount] = useState(4);
   const [latexPreview, setLatexPreview] = useState('');
   const [compileStatus, setCompileStatus] = useState('');
+  const [compiledPdfPath, setCompiledPdfPath] = useState('');
   const [showConstraints, setShowConstraints] = useState(false);
   const [constraints, setConstraints] = useState({
     totalQuestions: 10,
     topicDistribution: '',
     difficultyDistribution: 'easy:0.3,medium:0.5,hard:0.2',
+    typeDistribution: '',
     excludeTags: '',
   });
   const [solverResult, setSolverResult] = useState<any>(null);
@@ -57,6 +60,19 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
   const [compiling, setCompiling] = useState(false);
   const [solving, setSolving] = useState(false);
   const [creatingTemplate, setCreatingTemplate] = useState(false);
+
+  // Header/Layout presets
+  const [headerPresets, setHeaderPresets] = useState<any[]>([]);
+  const [layoutPresets, setLayoutPresets] = useState<any[]>([]);
+  const [selectedHeaderPresetId, setSelectedHeaderPresetId] = useState('');
+  const [selectedLayoutPresetId, setSelectedLayoutPresetId] = useState('');
+
+  // Version change log
+  const [changeLog, setChangeLog] = useState<any>(null);
+
+  // Per-section constraint editing
+  const [sectionConstraintIdx, setSectionConstraintIdx] = useState<number | null>(null);
+  const [sectionAllowedTypes, setSectionAllowedTypes] = useState<Record<string, string[]>>({});
 
   // Mark dirty when sections change
   const updateSections = useCallback((updater: (prev: Section[]) => Section[]) => {
@@ -82,10 +98,24 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
     } catch {}
   }, []);
 
+  const loadPresets = useCallback(async () => {
+    try {
+      const [hRes, lRes] = await Promise.all([
+        api.listHeaderPresets(),
+        api.listLayoutPresets(),
+      ]);
+      if (hRes?.presets) setHeaderPresets(hRes.presets);
+      else if (Array.isArray(hRes)) setHeaderPresets(hRes);
+      if (lRes?.presets) setLayoutPresets(lRes.presets);
+      else if (Array.isArray(lRes)) setLayoutPresets(lRes);
+    } catch {}
+  }, []);
+
   useEffect(() => {
     loadTemplates();
     loadBank();
-  }, [refreshKey, loadTemplates, loadBank]);
+    loadPresets();
+  }, [refreshKey, loadTemplates, loadBank, loadPresets]);
 
   // Autosave every 30 seconds when dirty
   useEffect(() => {
@@ -193,6 +223,16 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
     setSections(secs);
     setVersions([]);
     setLatexPreview('');
+    setChangeLog(null);
+    // Restore preset selections from template
+    setSelectedHeaderPresetId(tmpl.header_preset_id || '');
+    setSelectedLayoutPresetId(tmpl.layout_preset_id || '');
+    // Restore per-section allowed types
+    const allowedMap: Record<string, string[]> = {};
+    (tmpl.sections || []).forEach((s: any) => {
+      if (s.allowed_types?.length) allowedMap[s.id] = s.allowed_types;
+    });
+    setSectionAllowedTypes(allowedMap);
   };
 
   const addSection = () => {
@@ -333,11 +373,14 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
     try {
       const updated = {
         ...activeTemplate,
+        header_preset_id: selectedHeaderPresetId || undefined,
+        layout_preset_id: selectedLayoutPresetId || undefined,
         sections: sections.map((s, i) => ({
           id: s.id,
           name: s.name,
           description: s.description,
           order_index: i,
+          allowed_types: sectionAllowedTypes[s.id] || undefined,
           question_references: s.questions.map(q => ({
             question_id: q.question_id,
             points: q.points,
@@ -385,6 +428,7 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
       });
        if (res?.ok && res.versions) {
         setVersions(res.versions);
+        if (res.changeLog) setChangeLog(res.changeLog);
         setStatus(t('builder.generatedVersions', { count: res.versions.length }));
       } else {
         setStatus(res?.error || t('builder.versionsFailed'));
@@ -415,9 +459,14 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
 
     setPreviewing(true);
     try {
+      // Look up selected presets to pass in context
+      const headerPreset = headerPresets.find(p => p.id === selectedHeaderPresetId);
+      const layoutPreset = layoutPresets.find(p => p.id === selectedLayoutPresetId);
       const res = await api.renderTestLatex(allQuestions, instances, {
         template: activeTemplate,
         versionLabel: 'A',
+        headerPreset,
+        layoutPreset,
       });
       if (res?.ok) {
          setLatexPreview(res.latex ?? '');
@@ -442,6 +491,7 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
         {}
       );
       setCompileStatus(res?.ok ? `PDF created: ${res.pdfPath}` : `Error: ${res?.errors?.join(', ') || res?.error}`);
+      if (res?.ok && res.pdfPath) setCompiledPdfPath(res.pdfPath);
     } catch (e) {
       setCompileStatus(String(e));
     } finally {
@@ -468,11 +518,20 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
         });
       }
 
+      const typeDist: Record<string, number> = {};
+      if (constraints.typeDistribution.trim()) {
+        constraints.typeDistribution.split(',').forEach(pair => {
+          const [k, v] = pair.split(':');
+          if (k && v) typeDist[k.trim()] = parseFloat(v.trim());
+        });
+      }
+
       const res = await api.solveConstraints({
         totalQuestions: constraints.totalQuestions,
         topicDistribution: Object.keys(topicDist).length ? topicDist : undefined,
         difficultyDistribution: Object.keys(diffDist).length ? diffDist : undefined,
         excludeTags: constraints.excludeTags ? constraints.excludeTags.split(',').map(t => t.trim()) : undefined,
+        rules: Object.keys(typeDist).length ? { typeDistribution: typeDist } : undefined,
       });
 
       setSolverResult(res);
@@ -586,6 +645,12 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
               <input value={constraints.excludeTags}
                 onChange={e => setConstraints(c => ({ ...c, excludeTags: e.target.value }))} />
             </div>
+            <div>
+              <label>{t('builder.typeDistribution')}</label>
+              <input value={constraints.typeDistribution}
+                onChange={e => setConstraints(c => ({ ...c, typeDistribution: e.target.value }))}
+                placeholder="multiple_choice:0.5,short_answer:0.3,true_false:0.2" />
+            </div>
             <button className="btn-primary" onClick={runConstraintSolver} disabled={solving}>{solving ? t('builder.solving') : t('builder.solveAndAdd')}</button>
             {solverResult?.warnings?.length > 0 && (
               <div className="text-sm text-warning">
@@ -651,6 +716,32 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
                 <button className="btn-sm" onClick={addSection}>{t('builder.addSection')}</button>
               </div>
 
+              {/* Preset Selectors */}
+              <div className="flex items-center gap-sm flex-wrap" style={{ fontSize: 'var(--font-size-sm)' }}>
+                <label>{t('builder.headerPreset')}</label>
+                <select
+                  value={selectedHeaderPresetId}
+                  onChange={e => { setSelectedHeaderPresetId(e.target.value); setDirty(true); }}
+                  style={{ width: 'auto', minWidth: '140px' }}
+                >
+                  <option value="">{t('builder.defaultHeader')}</option>
+                  {headerPresets.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+                <label style={{ marginLeft: 'var(--space-sm)' }}>{t('builder.layoutPreset')}</label>
+                <select
+                  value={selectedLayoutPresetId}
+                  onChange={e => { setSelectedLayoutPresetId(e.target.value); setDirty(true); }}
+                  style={{ width: 'auto', minWidth: '140px' }}
+                >
+                  <option value="">{t('builder.defaultLayout')}</option>
+                  {layoutPresets.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}{p.scope === 'global' ? ' (G)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+
               {sections.map((section, sIdx) => (
                 <div
                   key={section.id}
@@ -675,6 +766,42 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
                         {'\u2715'}
                       </button>
                     </div>
+                  </div>
+
+                  {/* Per-section allowed types */}
+                  <div className="flex items-center gap-xs flex-wrap mb-sm" style={{ fontSize: 'var(--font-size-xs)' }}>
+                    <span className="text-tertiary">{t('builder.allowedTypes')}:</span>
+                    {(['multiple_choice', 'multiple_select', 'true_false', 'short_answer', 'matching'] as const).map(qt => {
+                      const allowed = sectionAllowedTypes[section.id] || [];
+                      const isChecked = allowed.length === 0 || allowed.includes(qt);
+                      return (
+                        <label key={qt} className="flex items-center gap-xs" style={{ cursor: 'pointer' }}>
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSectionAllowedTypes(prev => {
+                                const current = prev[section.id] || [];
+                                let next: string[];
+                                if (current.length === 0) {
+                                  // First click: allow all except this one
+                                  next = ['multiple_choice', 'multiple_select', 'true_false', 'short_answer', 'matching'].filter(x => x !== qt);
+                                } else if (current.includes(qt)) {
+                                  next = current.filter(x => x !== qt);
+                                } else {
+                                  next = [...current, qt];
+                                }
+                                // If all are selected, clear to mean "any"
+                                if (next.length === 5) next = [];
+                                return { ...prev, [section.id]: next };
+                              });
+                              setDirty(true);
+                            }}
+                          />
+                          <span>{qt.replace('_', ' ')}</span>
+                        </label>
+                      );
+                    })}
                   </div>
 
                   {section.questions.length === 0 && (
@@ -785,6 +912,42 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
                 ))}
               </div>
             )}
+            {/* Version Change Log */}
+            {changeLog && changeLog.entries?.length > 0 && (
+              <div className="mb-md">
+                <h4 className="mb-sm">{t('builder.changeLog')}</h4>
+                <div style={{
+                  fontSize: 'var(--font-size-xs)',
+                  background: 'var(--bg-input)',
+                  padding: 'var(--space-sm)',
+                  borderRadius: 'var(--radius-sm)',
+                  maxHeight: '200px',
+                  overflow: 'auto',
+                }}>
+                  {changeLog.entries.map((entry: any, idx: number) => (
+                    <div key={idx} style={{ marginBottom: 'var(--space-sm)' }}>
+                      <strong>{t('builder.versionLabel', { label: entry.version_label })}</strong>
+                      <ul style={{ margin: '2px 0 0 16px', padding: 0 }}>
+                        {(entry.changes || []).map((c: string, ci: number) => (
+                          <li key={ci}>{c}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                  {changeLog.generated_at && (
+                    <div className="text-xs text-tertiary" style={{ marginTop: 'var(--space-xs)' }}>
+                      {t('builder.generatedAt')}: {new Date(changeLog.generated_at).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            {compiledPdfPath && (
+              <div className="mb-md">
+                <h4 className="mb-sm">{t('builder.pdfPreview')}</h4>
+                <PdfPreviewPanel pdfPath={compiledPdfPath} maxHeight="400px" />
+              </div>
+            )}
             {latexPreview && (
               <div>
                 <h4 className="mb-sm">{t('builder.latexPreview')}</h4>
@@ -795,7 +958,7 @@ export function TestBuilderScreen({ refreshKey, onRefresh }: Props) {
                   padding: 'var(--space-sm)',
                   borderRadius: 'var(--radius-sm)',
                   overflow: 'auto',
-                  maxHeight: '400px',
+                  maxHeight: compiledPdfPath ? '200px' : '400px',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-all',
                 }}>

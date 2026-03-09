@@ -22,6 +22,7 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
   const [trueFalseValue, setTrueFalseValue] = useState<'true' | 'false'>('true');
   const [dirty, setDirty] = useState(false);
   const [lastAutoSave, setLastAutoSave] = useState<string | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
 
@@ -200,7 +201,18 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
       {/* Left editor panel */}
       <div className="panel flex flex-col gap-md overflow-auto" style={{ flex: 1 }}>
         <div className="flex items-center justify-between">
-          <h2>{draft.id ? 'Edit Question' : 'New Question'}</h2>
+          <div className="flex items-center gap-sm">
+            <h2>{draft.id ? 'Edit Question' : 'New Question'}</h2>
+            {draft.status === 'draft' && (
+              <span className="badge" style={{ background: 'var(--warning)', color: 'var(--bg-primary)' }}>draft</span>
+            )}
+            {draft.status === 'published' && (
+              <span className="badge" style={{ background: 'var(--success)', color: 'var(--bg-primary)' }}>published</span>
+            )}
+            {draft.origin === 'ai' && (
+              <span className="badge" style={{ background: 'var(--accent)', color: 'var(--bg-primary)' }}>AI-generated</span>
+            )}
+          </div>
           <div className="flex items-center gap-sm">
             {dirty && <span className="text-xs text-tertiary">(unsaved changes)</span>}
             {lastAutoSave && !dirty && <span className="text-xs text-tertiary">Auto-saved {lastAutoSave}</span>}
@@ -339,8 +351,35 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
         </div>
 
         {/* Media section */}
-        <div className="glass-card flex flex-col gap-sm">
+        <div
+          className="glass-card flex flex-col gap-sm"
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            setIsDragOver(true);
+          }}
+          onDragLeave={() => setIsDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragOver(false);
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+              handleFileUpload(files[0]);
+            }
+          }}
+          style={isDragOver ? { outline: '2px dashed var(--accent)', outlineOffset: '-2px' } : undefined}
+        >
           <h3>Media</h3>
+          {isDragOver && (
+            <div style={{
+              padding: 'var(--space-lg)',
+              textAlign: 'center',
+              background: 'rgba(var(--accent-rgb, 100, 149, 237), 0.1)',
+              borderRadius: 'var(--radius-sm)',
+            }}>
+              <p className="text-accent text-sm">Drop image here to upload</p>
+            </div>
+          )}
           {!activeProject && <div className="text-danger text-sm">No active project selected</div>}
           <div className="flex gap-md">
             <div className="flex-1">
@@ -421,6 +460,28 @@ export function QuestionEditor({ question, onSaved }: { question: Question | nul
           <button className="btn-primary" onClick={save} disabled={saving}>
             {saving ? 'Saving...' : 'Save'}
           </button>
+          {draft.status === 'draft' && draft.id && (
+            <button
+              onClick={async () => {
+                updateField('status', 'published');
+                // Save immediately with published status
+                setSaving(true);
+                try {
+                  await api.updateQuestion(draft.id, { ...draft, status: 'published' });
+                  setDraft(d => ({ ...d, status: 'published' }));
+                  setDirty(false);
+                  onSaved();
+                } catch (e: any) {
+                  setError(String(e));
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              disabled={saving}
+            >
+              Publish
+            </button>
+          )}
           {dirty && <span className="text-xs text-warning">Unsaved changes</span>}
         </div>
       </div>

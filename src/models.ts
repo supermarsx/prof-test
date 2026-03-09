@@ -41,6 +41,8 @@ export interface Question {
   updated_at?: string; // ISO datetime
   usage_count?: number;
   last_used_at?: string; // ISO datetime
+  status?: 'draft' | 'published';
+  origin?: 'human' | 'ai';
 }
 
 export interface HeaderPreset {
@@ -60,12 +62,19 @@ export interface HeaderPreset {
   };
 }
 
+export interface TestTemplateMetadata {
+  date?: string;
+  duration?: number; // minutes
+  instructions?: string;
+  custom_fields?: Record<string, any>;
+}
+
 export interface TestTemplate {
   id: UUID;
   title: string;
   course?: string;
   description?: string;
-  metadata?: Record<string, any>;
+  metadata?: TestTemplateMetadata;
   header_preset_id?: UUID;
   layout_preset_id?: UUID;
   sections?: SectionDefinition[];
@@ -89,11 +98,13 @@ export interface SectionDefinition {
   description?: string;
   order_index?: number;
   question_references?: Array<{ question_id?: UUID; constraintRef?: any }>;
+  allowed_types?: QuestionType[];
 }
 
 export interface LayoutPreset {
   id: UUID;
   name: string;
+  scope: 'global' | 'project';
   page_margins?: { top?: number; bottom?: number; left?: number; right?: number };
   font_family?: string;
   base_font_size?: number;
@@ -119,6 +130,7 @@ export interface TestInstance {
   latex_source_path?: string;
   pdf_path?: string;
   answer_key?: Record<string, any>;
+  created_at?: string; // ISO datetime
 }
 
 export interface VersionChangeEntry {

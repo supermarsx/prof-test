@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { t } from '../../i18n';
 import { api } from '../../lib/api';
+import { NewTestWizard } from '../NewTestWizard';
 
 interface DashboardProps {
   activeProject: string | null;
@@ -22,6 +23,7 @@ export function Dashboard({ activeProject, projects, onNavigate, onCreateProject
   const [status, setStatus] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
 
   const handleCreate = async () => {
     if (!newProjectName.trim()) return;
@@ -62,10 +64,11 @@ export function Dashboard({ activeProject, projects, onNavigate, onCreateProject
   };
 
   const quickActions = [
-    { label: t('dashboard.newQuestion'), desc: t('dashboard.newQuestionDesc'), screen: 'questions', icon: '+' },
-    { label: t('dashboard.buildTest'), desc: t('dashboard.buildTestDesc'), screen: 'builder', icon: '\u2692' },
-    { label: t('dashboard.aiAutoBuilder'), desc: t('dashboard.aiAutoBuilderDesc'), screen: 'ai', icon: '\u2728' },
-    { label: t('dashboard.exportResults'), desc: t('dashboard.exportResultsDesc'), screen: 'exports', icon: '\u21E9' },
+    { label: t('dashboard.newQuestion'), desc: t('dashboard.newQuestionDesc'), screen: 'questions', icon: '+', action: undefined },
+    { label: t('dashboard.newTest'), desc: t('dashboard.newTestDesc'), screen: undefined, icon: '\u2728', action: () => setShowWizard(true) },
+    { label: t('dashboard.buildTest'), desc: t('dashboard.buildTestDesc'), screen: 'builder', icon: '\u2692', action: undefined },
+    { label: t('dashboard.aiAutoBuilder'), desc: t('dashboard.aiAutoBuilderDesc'), screen: 'ai', icon: '\u2728', action: undefined },
+    { label: t('dashboard.exportResults'), desc: t('dashboard.exportResultsDesc'), screen: 'exports', icon: '\u21E9', action: undefined },
   ];
 
   return (
@@ -84,11 +87,11 @@ export function Dashboard({ activeProject, projects, onNavigate, onCreateProject
 
       {/* Quick Actions */}
       <div className="grid-2" style={{ maxWidth: '600px' }}>
-        {quickActions.map(action => (
+        {quickActions.map((action, idx) => (
           <button
-            key={action.screen}
+            key={action.label + idx}
             className="glass-card"
-            onClick={() => onNavigate(action.screen)}
+            onClick={() => action.action ? action.action() : onNavigate(action.screen)}
             style={{
               cursor: 'pointer',
               textAlign: 'left',
@@ -202,6 +205,16 @@ export function Dashboard({ activeProject, projects, onNavigate, onCreateProject
           </p>
         )}
       </div>
+
+      {/* New Test Wizard */}
+      <NewTestWizard
+        open={showWizard}
+        onClose={() => setShowWizard(false)}
+        onCreated={(templateId) => {
+          setShowWizard(false);
+          onNavigate('builder');
+        }}
+      />
     </div>
   );
 }

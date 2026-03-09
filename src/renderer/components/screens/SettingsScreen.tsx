@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { t } from '../../i18n';
 import { api } from '../../lib/api';
+import type { Settings } from '../../../models';
 
 interface Props {
   theme: 'dark' | 'light' | 'high-contrast';
@@ -26,6 +27,13 @@ interface SettingsState {
 
   // General
   language: string;
+}
+
+function extractSettingsResponse(
+  response: Awaited<ReturnType<typeof api.getSettings>> | undefined,
+): Settings | undefined {
+  if (!response) return undefined;
+  return 'settings' in response ? response.settings : undefined;
 }
 
 export function SettingsScreen({ theme, onToggleTheme, fontScale, onFontScaleChange }: Props) {
@@ -52,7 +60,7 @@ export function SettingsScreen({ theme, onToggleTheme, fontScale, onFontScaleCha
   const loadSettings = useCallback(async () => {
     try {
       const res = await api.getSettings();
-      const s = res?.settings || res;
+      const s = extractSettingsResponse(res);
       if (s) {
         setSettings(prev => ({
           ...prev,
@@ -172,6 +180,32 @@ export function SettingsScreen({ theme, onToggleTheme, fontScale, onFontScaleCha
       await api.removeLayoutPreset(id);
       await loadPresets();
       setStatus(t('settings.layoutPresetRemoved'));
+    } catch (e) { setStatus(String(e)); }
+  };
+
+  const duplicateHeaderPreset = async (preset: any) => {
+    try {
+      const clone = {
+        ...preset,
+        id: `hp-${Date.now()}`,
+        name: `${preset.name} (copy)`,
+      };
+      await api.upsertHeaderPreset(clone);
+      await loadPresets();
+      setStatus(t('settings.presetDuplicated'));
+    } catch (e) { setStatus(String(e)); }
+  };
+
+  const duplicateLayoutPreset = async (preset: any) => {
+    try {
+      const clone = {
+        ...preset,
+        id: `lp-${Date.now()}`,
+        name: `${preset.name} (copy)`,
+      };
+      await api.upsertLayoutPreset(clone);
+      await loadPresets();
+      setStatus(t('settings.presetDuplicated'));
     } catch (e) { setStatus(String(e)); }
   };
 
@@ -324,8 +358,11 @@ export function SettingsScreen({ theme, onToggleTheme, fontScale, onFontScaleCha
                 {headerPresets.map(p => (
                   <div key={p.id} className="flex items-center justify-between mb-xs"
                     style={{ padding: 'var(--space-xs) var(--space-sm)', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)' }}>
-                    <span className="text-sm">{p.name} <span className="badge">{p.scope}</span></span>
-                    <button className="btn-ghost btn-sm btn-danger" onClick={() => removeHeaderPreset(p.id)}>{t('settings.remove')}</button>
+                    <span className="text-sm">{p.name} <span className="badge">{p.scope || 'project'}</span></span>
+                    <div className="flex gap-xs">
+                      <button className="btn-ghost btn-sm" onClick={() => duplicateHeaderPreset(p)} title={t('settings.duplicate')}>{t('settings.duplicate')}</button>
+                      <button className="btn-ghost btn-sm btn-danger" onClick={() => removeHeaderPreset(p.id)}>{t('settings.remove')}</button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -339,8 +376,11 @@ export function SettingsScreen({ theme, onToggleTheme, fontScale, onFontScaleCha
                 {layoutPresets.map(p => (
                   <div key={p.id} className="flex items-center justify-between mb-xs"
                     style={{ padding: 'var(--space-xs) var(--space-sm)', background: 'var(--bg-input)', borderRadius: 'var(--radius-sm)' }}>
-                    <span className="text-sm">{p.name}</span>
-                    <button className="btn-ghost btn-sm btn-danger" onClick={() => removeLayoutPreset(p.id)}>{t('settings.remove')}</button>
+                    <span className="text-sm">{p.name} <span className="badge">{p.scope || 'project'}</span></span>
+                    <div className="flex gap-xs">
+                      <button className="btn-ghost btn-sm" onClick={() => duplicateLayoutPreset(p)} title={t('settings.duplicate')}>{t('settings.duplicate')}</button>
+                      <button className="btn-ghost btn-sm btn-danger" onClick={() => removeLayoutPreset(p.id)}>{t('settings.remove')}</button>
+                    </div>
                   </div>
                 ))}
               </div>

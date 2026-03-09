@@ -62,6 +62,8 @@ export function AIAssistantScreen({ refreshKey, onRefresh }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
   // Save confirmation dialog
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  // Suggest alternative loading state (keyed by question index)
+  const [suggestingIdx, setSuggestingIdx] = useState<number | null>(null);
 
   const clearResults = () => {
     setGenResults([]);
@@ -73,6 +75,7 @@ export function AIAssistantScreen({ refreshKey, onRefresh }: Props) {
     setEditingIdx(null);
     setShowSaveConfirm(false);
     setStatus(null);
+    setSuggestingIdx(null);
   };
 
   /** Update a generated question in-place */
@@ -97,6 +100,47 @@ export function AIAssistantScreen({ refreshKey, onRefresh }: Props) {
     });
     if (editingIdx === idx) setEditingIdx(null);
     else if (editingIdx !== null && editingIdx > idx) setEditingIdx(editingIdx - 1);
+  };
+
+  /** Request an AI alternative for a specific question */
+  const suggestAlternative = async (idx: number, questions: GeneratedQuestion[]) => {
+    const original = questions[idx];
+    if (!original) return;
+    setSuggestingIdx(idx);
+    try {
+      const res = await api.aiSuggestAlternative({
+        originalStem: original.stem,
+        topic: original.topic,
+        type: original.type,
+        difficulty: original.difficulty,
+      });
+      if (res?.ok && res.data) {
+        const alt = res.data as GeneratedQuestion;
+        const setter = mode === 'generate' ? setGenResults : setAutoResults;
+        setter(prev => {
+          const next = [...prev];
+          // Insert the alternative right after the original
+          next.splice(idx + 1, 0, alt);
+          return next;
+        });
+        // Adjust selected indices for the insertion
+        setSelectedIndices(prev => {
+          const next = new Set<number>();
+          for (const si of prev) {
+            if (si <= idx) next.add(si);
+            else next.add(si + 1);
+          }
+          return next;
+        });
+        setStatus(t('ai.alternativeSuggested'));
+      } else {
+        setStatus(res?.error || t('ai.failedAlternative'));
+      }
+    } catch (e) {
+      setStatus(String(e));
+    } finally {
+      setSuggestingIdx(null);
+    }
   };
 
   const handleGenerate = useCallback(async () => {
@@ -262,6 +306,8 @@ export function AIAssistantScreen({ refreshKey, onRefresh }: Props) {
           topic: q.topic,
           tags: ['ai-generated'],
           author: 'AI Assistant',
+          status: 'draft',
+          origin: 'ai',
         });
         if (res?.ok) saved++;
       } catch {}
@@ -304,6 +350,15 @@ export function AIAssistantScreen({ refreshKey, onRefresh }: Props) {
           {q.difficulty && <span className={`badge difficulty-${q.difficulty}`}>D{q.difficulty}</span>}
           {q.topic && <span className="badge">{q.topic}</span>}
           <span style={{ flex: 1 }} />
+          <button
+            className="btn-ghost btn-sm"
+            onClick={(e) => { e.stopPropagation(); suggestAlternative(idx, mode === 'generate' ? genResults : autoResults); }}
+            disabled={suggestingIdx === idx}
+            title={t('ai.suggestAlternative')}
+            aria-label={t('ai.suggestAlternative')}
+          >
+            {suggestingIdx === idx ? '\u231B' : '\u21C4'}
+          </button>
           <button
             className="btn-ghost btn-sm"
             onClick={(e) => { e.stopPropagation(); setEditingIdx(isEditing ? null : idx); }}

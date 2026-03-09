@@ -18,6 +18,7 @@ import type {
   Settings,
   SectionDefinition,
   VersionChangeLog,
+  QuestionType,
 } from '../../models';
 
 // ─── Tauri invoke wrapper ────────────────────────────────────
@@ -161,6 +162,8 @@ const CMD_MAP: Record<string, { method: string; path: string | ((args: Record<st
   save_settings: { method: 'POST', path: '/api/settings' },
   is_encryption_available: { method: 'GET', path: '/api/settings/encryption-available' },
   compile_latex: { method: 'POST', path: '/api/latex/compile' },
+  compile_latex_batch: { method: 'POST', path: '/api/latex/compile-batch' },
+  get_compile_batch_status: { method: 'GET', path: (args) => `/api/latex/compile-batch/${args.job_id}` },
   detect_latex: { method: 'GET', path: '/api/latex/detect' },
   render_test_latex: { method: 'POST', path: '/api/latex/render-test' },
   render_answer_key_latex: { method: 'POST', path: '/api/latex/render-answer-key' },
@@ -170,6 +173,7 @@ const CMD_MAP: Record<string, { method: string; path: string | ((args: Record<st
   ai_rephrase_question: { method: 'POST', path: '/api/ai/rephrase-question' },
   ai_generate_solution: { method: 'POST', path: '/api/ai/generate-solution' },
   ai_build_test_proposal: { method: 'POST', path: '/api/ai/build-test-proposal' },
+  ai_suggest_alternative: { method: 'POST', path: '/api/ai/suggest-alternative' },
   solve_constraints: { method: 'POST', path: '/api/solver/solve' },
   generate_test_versions: { method: 'POST', path: '/api/tests/generate-versions' },
   clear_ai_cache: { method: 'POST', path: '/api/cache/ai/clear' },
@@ -276,9 +280,11 @@ export const api = {
 
   // LaTeX
   compileLatex: (source: string, filename: string, options?: { engine?: string; outputDir?: string }) => invoke<{ ok: boolean; pdfPath?: string; errors?: string[]; error?: string; log?: string }>('compile_latex', { source, filename, options }),
+  compileLatexBatch: (items: Array<{ source: string; filename: string; options?: Record<string, unknown> }>) => invoke<{ ok: boolean; jobId?: string; error?: string }>('compile_latex_batch', { items }),
+  getCompileBatchStatus: (jobId: string) => invoke<{ ok: boolean; job?: { id: string; status: string; total: number; completed: number; results: Array<{ filename: string; ok: boolean; pdfPath?: string; errors?: string[] }>; error?: string }; error?: string }>('get_compile_batch_status', { job_id: jobId }),
   detectLatex: () => invoke<{ ok: boolean; found: boolean; path?: string; engine?: string }>('detect_latex'),
-  renderTestLatex: (questions: Array<Question | undefined>, instances: QuestionInstance[], context: { template?: TestTemplate; versionLabel?: string }, sections?: SectionDefinition[]) => invoke<{ ok: boolean; latex?: string; error?: string }>('render_test_latex', { questions, instances, context, sections }),
-  renderAnswerKeyLatex: (questions: Question[], instances: QuestionInstance[], answerKey: Record<string, string>, context: { template?: TestTemplate; versionLabel?: string }) => invoke<{ ok: boolean; latex?: string; error?: string }>('render_answer_key_latex', { questions, instances, answer_key: answerKey, context }),
+  renderTestLatex: (questions: Array<Question | undefined>, instances: QuestionInstance[], context: { template?: TestTemplate; versionLabel?: string; headerPreset?: HeaderPreset; layoutPreset?: LayoutPreset; courseName?: string; instructorName?: string; date?: string; duration?: string }, sections?: SectionDefinition[]) => invoke<{ ok: boolean; latex?: string; error?: string }>('render_test_latex', { questions, instances, context, sections }),
+  renderAnswerKeyLatex: (questions: Question[], instances: QuestionInstance[], answerKey: Record<string, string>, context: { template?: TestTemplate; versionLabel?: string; headerPreset?: HeaderPreset; layoutPreset?: LayoutPreset }) => invoke<{ ok: boolean; latex?: string; error?: string }>('render_answer_key_latex', { questions, instances, answer_key: answerKey, context }),
 
   // AI
   configureAI: (config: { provider: string; apiKey?: string; model?: string; baseUrl?: string } & Record<string, unknown>) => invoke<{ ok: boolean; error?: string }>('configure_ai', { config }),
@@ -287,6 +293,7 @@ export const api = {
   aiRephraseQuestion: (request: { question?: Question; stem?: string; tone?: string; instructions?: string }) => invoke<{ ok: boolean; data?: Question | string; error?: string }>('ai_rephrase_question', { request }),
   aiGenerateSolution: (question: Partial<Question>) => invoke<{ ok: boolean; data?: string; error?: string }>('ai_generate_solution', { question }),
   aiBuildTestProposal: (request: { description?: string; subject?: string; topics?: string[]; totalQuestions?: number; difficultyMix?: Record<string, number>; constraints?: Record<string, unknown> }) => invoke<{ ok: boolean; data?: Question[] | TestTemplate; error?: string }>('ai_build_test_proposal', { request }),
+  aiSuggestAlternative: (request: { originalStem: string; topic?: string; type?: string; difficulty?: number }) => invoke<{ ok: boolean; data?: Question; error?: string }>('ai_suggest_alternative', { request }),
 
   // Solver
   solveConstraints: (constraints: { templateId?: string; totalQuestions?: number; topicDistribution?: Record<string, number>; difficultyDistribution?: Record<string, number>; excludeTags?: string[]; rules?: Record<string, unknown>; questionPool?: string[] }) => invoke<{ ok: boolean; questions?: Question[]; warnings?: string[] }>('solve_constraints', { constraints }),

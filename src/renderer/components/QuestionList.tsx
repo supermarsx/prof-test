@@ -25,6 +25,12 @@ const QuestionRow = React.memo(function QuestionRow({
       <button type="button" className="btn-ghost btn-sm flex-1 truncate" onClick={() => onSelect(question)}>
         {question.stem} {question.topic ? `(${question.topic})` : ''}
       </button>
+      {question.status === 'draft' && (
+        <span className="badge" style={{ background: 'var(--warning)', color: 'var(--bg-primary)' }}>draft</span>
+      )}
+      {question.origin === 'ai' && (
+        <span className="badge" style={{ background: 'var(--accent)', color: 'var(--bg-primary)' }}>AI</span>
+      )}
       {question.type && <span className="badge badge-accent">{question.type}</span>}
       {question.difficulty != null && (
         <span className={`badge ${difficultyClass(question.difficulty)}`}>D{question.difficulty}</span>

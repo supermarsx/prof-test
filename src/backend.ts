@@ -466,6 +466,78 @@ addRoute('POST', '/api/latex/render-answer-key', safe(async (body) => {
   return { ok: true, latex };
 }));
 
+// ── Batch LaTeX Compilation ──────────────────────────────────
+
+interface BatchJob {
+  id: string;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  total: number;
+  completed: number;
+  results: Array<{ source: string; filename: string; ok: boolean; pdfPath?: string; errors?: string[] }>;
+  error?: string;
+  created_at: string;
+}
+
+const batchJobs = new Map<string, BatchJob>();
+
+addRoute('POST', '/api/latex/compile-batch', safe(async (body) => {
+  const items = requireArray(body.items, 'items') as Array<{ source: string; filename: string; options?: Record<string, unknown> }>;
+  if (items.length === 0) throw new Error('At least one item required');
+  if (items.length > 50) throw new Error('Maximum 50 items per batch');
+
+  const jobId = `batch-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const job: BatchJob = {
+    id: jobId,
+    status: 'running',
+    total: items.length,
+    completed: 0,
+    results: [],
+    created_at: new Date().toISOString(),
+  };
+  batchJobs.set(jobId, job);
+
+  // Process in background (non-blocking)
+  const settings = settingsRepo.getSettings();
+  (async () => {
+    for (const item of items) {
+      try {
+        const result = await compileLatex(item.source, item.filename, {
+          ...(item.options || {}),
+          latexPath: (item.options as any)?.latexPath || settings.latex_path,
+        });
+        job.results.push({ source: item.filename, filename: item.filename, ok: result.success, pdfPath: result.pdfPath, errors: result.errors });
+      } catch (e: any) {
+        job.results.push({ source: item.filename, filename: item.filename, ok: false, errors: [e.message || 'Unknown error'] });
+      }
+      job.completed++;
+    }
+    job.status = job.results.every(r => r.ok) ? 'completed' : 'failed';
+  })().catch(e => {
+    job.status = 'failed';
+    job.error = e.message || 'Unexpected batch error';
+  });
+
+  return { ok: true, jobId };
+}));
+
+addRoute('GET', '/api/latex/compile-batch/:jobId', safe(async (_body, params) => {
+  const jobId = params?.jobId;
+  if (!jobId) throw new Error('jobId is required');
+  const job = batchJobs.get(jobId);
+  if (!job) throw new Error('Job not found');
+  return {
+    ok: true,
+    job: {
+      id: job.id,
+      status: job.status,
+      total: job.total,
+      completed: job.completed,
+      results: job.results,
+      error: job.error,
+    },
+  };
+}));
+
 // ── AI ───────────────────────────────────────────────────────
 
 addRoute('POST', '/api/ai/configure', safe(async (body) => {
@@ -512,6 +584,26 @@ addRoute('POST', '/api/ai/build-test-proposal', safe(async (body) => {
   if (!provider) return { ok: false, error: 'AI provider not configured' };
   const result = await provider.buildTestProposal(body as any);
   return { ok: result.success, data: result.data, error: result.error };
+}));
+
+addRoute('POST', '/api/ai/suggest-alternative', safe(async (body) => {
+  requireObject(body, 'request');
+  const provider = getAIProvider();
+  if (!provider) return { ok: false, error: 'AI provider not configured' };
+  // Reuse generateQuestions with count=1 and instructions to produce an alternative
+  const req = body.request || body;
+  const result = await provider.generateQuestions({
+    topic: req.topic || '',
+    subject: req.topic || '',
+    questionType: req.type || 'multiple_choice',
+    difficulty: req.difficulty,
+    count: 1,
+    context: `Generate a single alternative question that covers the same concept as: "${req.originalStem}". The alternative should test the same knowledge but use different wording, examples, or approach.`,
+  });
+  if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+    return { ok: true, data: result.data[0] };
+  }
+  return { ok: false, error: result.error || 'Failed to generate alternative' };
 }));
 
 // ── Solver ───────────────────────────────────────────────────
