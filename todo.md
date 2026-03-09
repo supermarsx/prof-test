@@ -49,14 +49,14 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Add solution/explanation fields with LaTeX support.
 
 ## Test Assembly (Manual)
-- [ ] Implement section creation and reordering UI.
-- [ ] Add drag-and-drop of questions into sections.
-- [ ] Add per-question points and local overrides.
-- [ ] Add include/exclude toggles without deletion.
+- [x] Implement section creation and reordering UI.
+- [x] Add drag-and-drop of questions into sections.
+- [x] Add per-question points and local overrides.
+- [x] Add include/exclude toggles without deletion.
 
 ## Test Assembly (Auto / Rule-Based)
-- [ ] Define constraint builder UI.
-- [ ] Implement selection logic honoring topic/difficulty/type constraints.
+- [x] Define constraint builder UI.
+- [x] Implement selection logic honoring topic/difficulty/type constraints.
 - [ ] Add preview and editable result set with DnD.
 
 ## AI-Assisted Auto Builder
@@ -73,9 +73,9 @@ This list tracks open work derived from `spec.md` and current implementation. It
 - [x] Add version labeling (A-T) and mapping to answer keys.
 
 ## LaTeX Pipeline
-- [ ] Implement template system for header/layout presets.
-- [ ] Add LaTeX compilation module with logs and error surfacing.
-- [ ] Support `pdflatex` and `xelatex` configuration.
+- [x] Implement template system for header/layout presets.
+- [x] Add LaTeX compilation module with logs and error surfacing.
+- [x] Support `pdflatex` and `xelatex` configuration.
 - [ ] Add render preview for individual questions and whole tests.
 
 ## Exports: CSV/Excel
@@ -104,7 +104,7 @@ This list tracks open work derived from `spec.md` and current implementation. It
 
 ## Testing & QA
 - [x] Add unit tests for randomization.
-- [ ] Add unit tests for constraint solver.
+- [x] Add unit tests for constraint solver.
 - [x] Add tests for export generation (CSV/XLSX).
 - [x] Add integration tests for project import/export.
 - [ ] Add E2E Electron tests for key user flows.
